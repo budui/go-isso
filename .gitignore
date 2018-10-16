@@ -26,5 +26,6 @@
 !.vscode/launch.json
 !.vscode/extensions.json
 
+test.db
 
 # End of https://www.gitignore.io/api/go,visualstudiocode
