@@ -1,7 +1,9 @@
 package db
 
 import (
-	"encoding/json"
+	"errors"
+	"time"
+	"regexp"
 
 	"gopkg.in/guregu/null.v3"
 )
@@ -46,17 +48,58 @@ type Comment struct {
 	Hash string `json:"hash"`
 }
 
-// To parse and unparse this JSON data, add this code to your project and do:
-//
-//    comment, err := unmarshalComment(bytes)
-//    bytes, err = comment.Marshal()
-
-func unmarshalComment(data []byte) (Comment, error) {
-	var r Comment
-	err := json.Unmarshal(data, &r)
-	return r, err
+// NewComment return a new comment struct with setable fileds.
+// ID, tid, or others generate later
+func NewComment(Parent null.Int, mode int64, remoteAddr string,
+	text string, author, email, website null.String, notification int64) Comment {
+	c := Comment{
+		Parent:       Parent,
+		Mode:         mode,
+		remoteAddr:   remoteAddr,
+		Text:         text,
+		Author:       author,
+		email:        email,
+		Website:      website,
+		notification: notification,
+	}
+	c.Created = float64(time.Now().UnixNano()) / float64(1e9)
+	return c
 }
 
-func (r *Comment) uarshal() ([]byte, error) {
-	return json.Marshal(r)
+// Verify check comment invaild or valid
+func (c *Comment) Verify() error {
+	if len(c.Text) < 3 {
+		return errors.New("text is too short (minimum length: 3)")
+	}
+	if len(c.Text) > 65535 {
+		return errors.New("text is too long (maximum length: 65535)")
+	}
+	if c.Parent.Valid && c.Parent.Int64 <= 0 {
+		return errors.New("parent must be an integer > 0")
+	}
+	
+	if c.email.Valid {
+		if len(c.email.String) > 254 {
+			return errors.New("too long email")
+		}
+		emailRegex := "[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
+		ok, _ := regexp.MatchString(emailRegex, c.email.String) 
+		if !ok {
+			return errors.New("invalid email")
+		}
+	}
+	
+	if c.Website.Valid {
+		if len(c.email.String) > 254 {
+			return errors.New("arbitrary length limit")
+		}
+		WebsiteRegex := "[(http(s)?):\\/\\/(www\\.)?a-zA-Z0-9@:%._\\+~#=]{2,256}\\.[a-z]{2,6}\\b([-a-zA-Z0-9@:%_\\+.~#?&//=]*)"
+		
+		ok, _ := regexp.MatchString(WebsiteRegex, c.Website.String) 
+		if !ok {
+			return errors.New("invalid website address")
+		}
+	}
+
+	return nil
 }

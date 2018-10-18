@@ -10,11 +10,12 @@ import (
 )
 
 func main() {
+	isDebug := flag.Bool("d", false, "run for debug")
 	configPath := flag.String("c", "../../configs/isso.conf", "set configuration file")
 	flag.Parse()
 	
 	cfg, _ := conf.Load(*configPath)
-	isso := server.NewServer(cfg)
+	isso := server.NewServer(cfg, *isDebug)
 	defer isso.Close()
 	
 	if err := isso.Run(); err != nil {

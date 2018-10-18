@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"gopkg.in/guregu/null.v3"
 
@@ -35,6 +36,33 @@ func (s *Server) handleStatusCode(code int) http.HandlerFunc {
 
 // TODO: params plain for plain text or contains html tag
 func (s *Server) handleFetch() http.HandlerFunc {
+	parseURLParams2nullInts := func(w http.ResponseWriter, Q url.Values, keys []string, vars []*null.Int) error {
+		for i, k := range keys {
+			resultSlice, ok := Q[k]
+			if !ok {
+				continue
+			}
+			realV, err := strconv.Atoi(resultSlice[0])
+			if err != nil || realV < 0 {
+				jsonError(w, fmt.Sprintf("param %s invalid", k), 400)
+				return errors.New("Invalid param")
+			}
+			*(vars[i]) = null.IntFrom(int64(realV))
+		}
+		return nil
+	}
+	type reply struct {
+		db.Comment
+		HiddenReplies *int64  `json:"hidden_replies,omitempty"`
+		TotalReplies  *int64  `json:"total_replies,omitempty"`
+		Replies       []reply `json:"replies,omitempty"`
+	}
+	type FetchedComments struct {
+		TotalReplies  int64    `json:"total_replies"`
+		Replies       []reply  `json:"replies"`
+		ID            null.Int `json:"id"`
+		HiddenReplies int64    `json:"hidden_replies"`
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		RQuery := r.URL.Query()
 		uris, ok := RQuery["uri"]
@@ -48,29 +76,13 @@ func (s *Server) handleFetch() http.HandlerFunc {
 		var err error
 		resultSlice, ok := RQuery["after"]
 		if !ok {
-			after = 0.01
+			after = 0.00
 		} else {
 			after, err = strconv.ParseFloat(resultSlice[0], 64)
 			if err != nil {
 				jsonError(w, "param after invalid", 400)
 				return
 			}
-		}
-
-		parseURLParams2nullInts := func(w http.ResponseWriter, Q url.Values, keys []string, vars []*null.Int) error {
-			for i, k := range keys {
-				resultSlice, ok := Q[k]
-				if !ok {
-					continue
-				}
-				realV, err := strconv.Atoi(resultSlice[0])
-				if err != nil || realV < 0 {
-					jsonError(w, fmt.Sprintf("param %s invalid", k), 400)
-					return errors.New("Invalid param")
-				}
-				*(vars[i]) = null.IntFrom(int64(realV))
-			}
-			return nil
 		}
 
 		var limit, parent, nestedLimit null.Int
@@ -87,19 +99,6 @@ func (s *Server) handleFetch() http.HandlerFunc {
 			s.log.Errorln(err)
 			http.Error(w, http.StatusText(500), 500)
 			return
-		}
-
-		type reply struct {
-			db.Comment
-			HiddenReplies *int64  `json:"hidden_replies,omitempty"`
-			TotalReplies  *int64  `json:"total_replies,omitempty"`
-			Replies       []reply `json:"replies,omitempty"`
-		}
-		type FetchedComments struct {
-			TotalReplies  int64    `json:"total_replies"`
-			Replies       []reply  `json:"replies"`
-			ID            null.Int `json:"id"`
-			HiddenReplies int64    `json:"hidden_replies"`
 		}
 
 		_, ok = replyCounts[parent]
@@ -157,6 +156,20 @@ func (s *Server) handleFetch() http.HandlerFunc {
 }
 
 func (s *Server) handleNew() http.HandlerFunc {
+	modeflag, err := s.Conf.Section("moderation").Key("enabled").Bool()
+	if err != nil {
+		s.log.Fatalf("Can not get vaild `moderation.enabled` setting: %s", err)
+	}
+	var mode int64
+	var successCode int
+	if modeflag {
+		mode = 1
+		successCode = 201
+	} else {
+		mode = 2
+		successCode = 202
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		uris, ok := r.URL.Query()["uri"]
 		if !ok {
@@ -166,17 +179,36 @@ func (s *Server) handleNew() http.HandlerFunc {
 		uri := uris[0]
 		var nc struct {
 			Text         string      `json:"text"`
-			Parent       null.Int   `json:"parent"`
+			Parent       null.Int    `json:"parent"`
 			Author       null.String `json:"author"`
 			Email        null.String `json:"email"`
 			Website      null.String `json:"website"`
+			Title        null.String `json:"title"`
+			Notification int64       `json:"notification"`
 		}
 		err := json.NewDecoder(http.MaxBytesReader(w, r.Body, int64(1<<14))).Decode(&nc)
 		if err != nil {
 			jsonError(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
-		s.log.Debugln(uri)
+
+		c := db.NewComment(nc.Parent, mode, strings.Split(r.RemoteAddr, ":")[0], nc.Text,
+			nc.Author, nc.Email, nc.Website, nc.Notification)
+
+		c.Hash = s.hasher.Hash(r.RemoteAddr)
+
+		if err := c.Verify(); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		c, err = s.db.Add(uri, c)
+		if err != nil {
+			s.log.Errorf("insert comment failed: %s", err)
+			jsonError(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			return
+		}
+		jSON(w, c, successCode)
 	}
 }
 

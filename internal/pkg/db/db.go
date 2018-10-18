@@ -1,6 +1,7 @@
 package db
 
 import (
+	"github.com/jinxiapu/go-isso/internal/app/isso/util"
 	"database/sql"
 	"errors"
 
@@ -50,9 +51,11 @@ var (
 // Worker have all database-related methods.
 type Worker interface {
 	// Prepare prepare all database-related things for isso
-	Prepare() error
+	PrepareToWork() error
 	CountReply(uri string, mode int, after float64) (map[null.Int]int64, error)
 	Fetch(uri string, mode int, after float64, parent null.Int, orderBy string, isASC bool, limit null.Int) ([]Comment, error)
+	Add(uri string, c Comment) (Comment, error)
+	Get(id int64) (Comment, error)
 }
 
 // Guard holds all config for database limit
@@ -79,8 +82,8 @@ func NewWorker(path string, guard Guard) Worker {
 	return &database{db, guard}
 }
 
-// Prepare prepare all database-related things for go-isso
-func (db *database) Prepare() error {
+// PrepareToWork prepare all database-related things for go-isso
+func (db *database) PrepareToWork() error {
 
 	if err := db.Ping(); err != nil {
 		return err
@@ -207,4 +210,58 @@ func (db *database) Fetch(uri string, mode int, after float64, parent null.Int, 
 		return nil, err
 	}
 	return comments, nil
+}
+
+// Add new comment to DB and return a compelete Comment
+func (db *database) Add(uri string, c Comment) (Comment, error) {
+	if c.Parent.Valid {
+		parent, err := db.Get(c.Parent.Int64)
+		if err != nil {
+			return Comment{}, err
+		}
+		c.Parent = parent.Parent
+	}
+
+	c.voters = util.GenBloomfilterfunc(c.remoteAddr)
+
+	stmt, err := db.Prepare(`
+	INSERT INTO comments (
+        	tid, parent, created, modified, mode, remote_addr,
+			text, author, email, website, voters, notification
+		)
+    SELECT threads.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+			FROM threads WHERE threads.uri = ?;`)
+	if err != nil {
+		return Comment{}, err
+	}
+	_, err = stmt.Exec(c.Parent, c.Created, c.Modified, c.Mode, c.remoteAddr,
+		c.Text, c.Author, c.email, c.Website, c.voters, c.notification, uri)
+	if err != nil {
+		return Comment{}, err
+	}
+
+
+	err = db.QueryRow(`SELECT c.* FROM comments AS c INNER JOIN threads ON threads.uri = ? ORDER BY c.id DESC LIMIT 1`, uri).Scan(
+		&c.tid, &c.ID, &c.Parent, &c.Created, &c.Modified,
+		&c.Mode, &c.remoteAddr, &c.Text, &c.Author, &c.email, &c.Website,
+		&c.Likes, &c.Dislikes, &c.voters, &c.notification,
+	)
+	if err != nil {
+		return Comment{}, err
+	}
+	return c, nil
+}
+
+// Get : Search for comment :param:`id` and return (Comment, nil) or (nil, error)
+func (db *database) Get(id int64) (Comment, error) {
+	var c Comment
+	err := db.QueryRow(`SELECT * FROM comments WHERE id=?`, id).Scan(
+		&c.tid, &c.ID, &c.Parent, &c.Created, &c.Modified,
+		&c.Mode, &c.remoteAddr, &c.Text, &c.Author, &c.email, &c.Website,
+		&c.Likes, &c.Dislikes, &c.voters, &c.notification,
+	)
+	if err != nil {
+		return Comment{}, err
+	}
+	return c, err
 }
