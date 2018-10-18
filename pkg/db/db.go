@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/jinxiapu/go-isso/internal/app/isso/util"
+	"github.com/jinxiapu/go-isso/app/isso/util"
 	"database/sql"
 	"errors"
 

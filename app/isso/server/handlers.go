@@ -12,8 +12,8 @@ import (
 
 	"gopkg.in/guregu/null.v3"
 
-	"github.com/jinxiapu/go-isso/internal/pkg/db"
-	"github.com/jinxiapu/go-isso/pkg/way"
+	"github.com/jinxiapu/go-isso/pkg/db"
+	"github.com/jinxiapu/go-isso/app/isso/way"
 )
 
 func jSON(w http.ResponseWriter, v interface{}, status int) {

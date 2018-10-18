@@ -5,8 +5,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/jinxiapu/go-isso/internal/app/isso/server"
-	"github.com/jinxiapu/go-isso/internal/pkg/conf"
+	"github.com/jinxiapu/go-isso/app/isso/server"
+	"github.com/jinxiapu/go-isso/pkg/conf"
 )
 
 func main() {

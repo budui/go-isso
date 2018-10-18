@@ -6,11 +6,11 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/jinxiapu/go-isso/internal/app/isso/sender"
-	"github.com/jinxiapu/go-isso/internal/app/isso/util"
-	"github.com/jinxiapu/go-isso/internal/pkg/conf"
-	"github.com/jinxiapu/go-isso/internal/pkg/db"
-	"github.com/jinxiapu/go-isso/pkg/way"
+	"github.com/jinxiapu/go-isso/app/isso/sender"
+	"github.com/jinxiapu/go-isso/app/isso/util"
+	"github.com/jinxiapu/go-isso/pkg/conf"
+	"github.com/jinxiapu/go-isso/pkg/db"
+	"github.com/jinxiapu/go-isso/app/isso/way"
 )
 
 // Server is the main struct for isso.
