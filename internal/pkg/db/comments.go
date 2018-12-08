@@ -2,8 +2,8 @@ package db
 
 import (
 	"errors"
-	"time"
 	"regexp"
+	"time"
 
 	"gopkg.in/guregu/null.v3"
 )
@@ -66,7 +66,7 @@ func NewComment(Parent null.Int, mode int64, remoteAddr string,
 	return c
 }
 
-// Verify check comment invaild or valid
+// Verify check comment invalid or valid
 func (c *Comment) Verify() error {
 	if len(c.Text) < 3 {
 		return errors.New("text is too short (minimum length: 3)")
@@ -77,25 +77,25 @@ func (c *Comment) Verify() error {
 	if c.Parent.Valid && c.Parent.Int64 <= 0 {
 		return errors.New("parent must be an integer > 0")
 	}
-	
+
 	if c.email.Valid {
 		if len(c.email.String) > 254 {
 			return errors.New("too long email")
 		}
 		emailRegex := "[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
-		ok, _ := regexp.MatchString(emailRegex, c.email.String) 
+		ok, _ := regexp.MatchString(emailRegex, c.email.String)
 		if !ok {
 			return errors.New("invalid email")
 		}
 	}
-	
+
 	if c.Website.Valid {
 		if len(c.email.String) > 254 {
 			return errors.New("arbitrary length limit")
 		}
 		WebsiteRegex := "[(http(s)?):\\/\\/(www\\.)?a-zA-Z0-9@:%._\\+~#=]{2,256}\\.[a-z]{2,6}\\b([-a-zA-Z0-9@:%_\\+.~#?&//=]*)"
-		
-		ok, _ := regexp.MatchString(WebsiteRegex, c.Website.String) 
+
+		ok, _ := regexp.MatchString(WebsiteRegex, c.Website.String)
 		if !ok {
 			return errors.New("invalid website address")
 		}
