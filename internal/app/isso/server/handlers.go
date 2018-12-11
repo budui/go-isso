@@ -96,7 +96,7 @@ func (s *Server) handleFetch() http.HandlerFunc {
 
 		replyCounts, err := s.db.CountReply(uri, db.ModePublic, after)
 		if err != nil {
-			s.log.Errorln(err)
+			s.log.Printf("[ERROR]:%v", err)
 			http.Error(w, http.StatusText(500), 500)
 			return
 		}
@@ -113,7 +113,7 @@ func (s *Server) handleFetch() http.HandlerFunc {
 		FetchComments := func(w http.ResponseWriter, parent, limit null.Int) ([]reply, error) {
 			comments, err := s.db.Fetch(uri, db.ModePublic, after, parent, "id", true, limit)
 			if err != nil {
-				s.log.Errorln(err)
+				s.log.Printf("[ERROR]:%v", err)
 				http.Error(w, http.StatusText(500), 500)
 				return nil, err
 			}
@@ -156,10 +156,7 @@ func (s *Server) handleFetch() http.HandlerFunc {
 }
 
 func (s *Server) handleNew() http.HandlerFunc {
-	modeflag, err := s.Conf.Section("moderation").Key("enabled").Bool()
-	if err != nil {
-		s.log.Fatalf("Can not get vaild `moderation.enabled` setting: %s", err)
-	}
+	modeflag := s.Conf.Moderation.Enable
 	var mode int64
 	var successCode int
 	if modeflag {
@@ -195,8 +192,6 @@ func (s *Server) handleNew() http.HandlerFunc {
 		c := db.NewComment(nc.Parent, mode, strings.Split(r.RemoteAddr, ":")[0], nc.Text,
 			nc.Author, nc.Email, nc.Website, nc.Notification)
 
-		c.Hash = s.hasher.Hash(r.RemoteAddr)
-
 		if err := c.Verify(); err != nil {
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
@@ -204,7 +199,7 @@ func (s *Server) handleNew() http.HandlerFunc {
 
 		c, err = s.db.Add(uri, c)
 		if err != nil {
-			s.log.Errorf("insert comment failed: %s", err)
+			s.log.Printf("[ERROR]:%v", err)
 			jsonError(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 			return
 		}

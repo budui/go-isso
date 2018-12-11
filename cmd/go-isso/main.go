@@ -3,19 +3,22 @@ package main
 import (
 	"flag"
 
-	log "github.com/sirupsen/logrus"
+	"log"
 
 	"github.com/RayHY/go-isso/internal/app/isso/server"
 	"github.com/RayHY/go-isso/internal/pkg/conf"
 )
 
 func main() {
-	isDebug := flag.Bool("d", false, "run for debug")
-	configPath := flag.String("c", "./configs/isso.conf", "set configuration file")
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
+	configPath := flag.String("c", "./configs/go-isso.toml", "set configuration file")
 	flag.Parse()
 
-	cfg, _ := conf.Load(*configPath)
-	isso := server.NewServer(cfg, *isDebug)
+	config, err := conf.Load(*configPath)
+	if err != nil {
+		log.Fatalf("[FATA] Load Config Failed %v", err)
+	}
+	isso := server.NewServer(config)
 	defer isso.Close()
 
 	if err := isso.Run(); err != nil {

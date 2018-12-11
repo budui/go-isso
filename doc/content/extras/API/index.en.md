@@ -38,46 +38,123 @@ returned from Isso:
 | created  | time in seconds since UNIX time                                                             |
 | modified | last modification since UNIX time, may be `null`                                            |
 
-## List comments
+### comment mode description
 
-List all publicly visible comments for thread `uri`:
+| value | explanation                                                                                        |
+| :---: | :------------------------------------------------------------------------------------------------: |
+| 1     | accepted: The comment was accepted by the server and is published.                                 |
+| 2     | in moderation queue: The comment was accepted by the server but awaits moderation.                 |
+| 4     | deleted, but referenced: The comment was deleted on the server but is still referenced by replies. |
 
-```text
-GET /?uri=%2Fhello-world%2F
-```
+## fetch
 
-| Field | Description                                              |
-| :---: | :------------------------------------------------------: |
-| uri   | URI to fetch comments for, required.                     |
-| plain | pass plain=1 to get the raw comment text, defaults to 0. |
+----
+  Queries the comments of a thread.
 
-## Create comment
+* **URL**
 
-To create a new comment, you need to issue a POST request to `/new` and
-add the current URI (so the server can check if the location actually
-exists).
+  `/`
 
-```bash
-$ curl -vX POST http://isso/new?uri=%2F -d '{"text": "Hello, World!"}' -H "Content-Type: application/json"
-< HTTP/1.1 201 CREATED
-< Set-Cookie: 1=...; Expires=Wed, 18-Dec-2013 12:57:20 GMT; Max-Age=900; Path=/
+  > /?uri=/thread/&limit=2&nested_limit=5
+
+* **Method:**
+  
+  `GET`
+  
+* **URL Params**
+
+| field        | type   | limit      | desc                                                                                    |
+| :----------: | :----: | :--------: | :-------------------------------------------------------------------------------------: |
+| uri          | string | `Required` | The URI of thread to get the comments from.                                             |
+| parent       | number | `Optional` | Return only comments that are children of the comment with the provided ID.             |
+| limit        | number | `Optional` | The maximum number of returned top-level comments. Omit for unlimited results.          |
+| nested_limit | number | `Optional` | The maximum number of returned nested comments per commint. Omit for unlimited results. |
+| after        | number | `Optional` | Includes only comments were added after the provided UNIX timestamp.                    |
+| plain        | number | `Optional` | "0" for text which contains html tags,others for keep the text of comment plain.        |
+
+* **Success Response:**
+
+  * **Code:** 200
+
+| field          | type     | desc                                                                                                                                                                                                  |
+| :------------: | :------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| total_replies  | number   | The number of replies if the `limit` parameter was not set.<br>  If `after` is set to `X`, this is the number of comments that were created after `X`.<br>  So setting `after` may change this value! |
+| replies        | Object[] | The list of comments. <br> Each comment also has the `total_replies`, `replies`, `id` <br> and `hidden_replies` properties to represent nested comments.                                              |
+| id             | number   | Id of the comment `replies` is the list of replies of. <br> `null` for the list of toplevel comments.                                                                                                 |
+| hidden_replies | number   | The number of comments that were ommited from the results <br> because of the `limit` request parameter.<br>  Usually, this will be `total_replies` - `limit`.                                        |
+
+Example:
+
+```output
+$ curl 'https://comments.example.com/?uri=/thread/&limit=2&nested_limit=5'
 {
-    "author": null,
-    "created": 1387370540.733824,
-    "dislikes": 0,
-    "email": null,
-    "hash": "6dcdbfb4f00d",
-    "id": 1,
-    "likes": 0,
-    "mode": 1,
-    "modified": null,
-    "parent": null,
-    "text": "<p>Hello, World!</p>\n",
-    "website": null
+  "total_replies": 14,
+  "replies": [
+    {
+      "website": null,
+      "author": null,
+      "parent": null,
+      "created": 1464818460.732863,
+      "text": "&lt;p&gt;Hello, World!&lt;/p&gt;",
+      "total_replies": 1,
+      "hidden_replies": 0,
+      "dislikes": 2,
+      "modified": null,
+      "mode": 1,
+      "replies": [
+        {
+          "website": null,
+          "author": null,
+          "parent": 1,
+          "created": 1464818460.769638,
+          "text": "&lt;p&gt;Hi, now some Markdown: &lt;em&gt;Italic&lt;/em&gt;, &lt;strong&gt;bold&lt;/strong&gt;, &lt;code&gt;monospace&lt;/code&gt;.&lt;/p&gt;",
+          "dislikes": 0,
+          "modified": null,
+          "mode": 1,
+          "hash": "2af4e1a6c96a",
+          "id": 2,
+          "likes": 2
+        }
+      ],
+      "hash": "1cb6cc0309a2",
+      "id": 1,
+      "likes": 2
+    },
+    {
+      "website": null,
+      "author": null,
+      "parent": null,
+      "created": 1464818460.80574,
+      "text": "&lt;p&gt;Lorem ipsum dolor sit amet, consectetur adipisicing elit. Accusantium at commodi cum deserunt dolore, error fugiat harum incidunt, ipsa ipsum mollitia nam provident rerum sapiente suscipit tempora vitae? Est, qui?&lt;/p&gt;",
+      "total_replies": 0,
+      "hidden_replies": 0,
+      "dislikes": 0,
+      "modified": null,
+      "mode": 1,
+      "replies": [],
+      "hash": "1cb6cc0309a2",
+      "id": 3,
+      "likes": 0
+    },
+    "id": null,
+    "hidden_replies": 12
 }
 ```
 
-The payload must be valid JSON. To prevent CSRF attacks, you must set
+* **Error Response:**
+
+| error                        | status code      | response                                     |
+| :--------------------------: | :--------------: | :------------------------------------------: |
+| can not find vaild comment   | `404` NotFound   | `{ "error" : "Not Found" }`                  |
+| param `parent` invalid       | `400` BadRequest | `{ "error" : "param parent invalid" }`       |
+| param `limit` invalid        | `400` BadRequest | `{ "error" : "param limit invalid" }`        |
+| param `after` invalid        | `400` BadRequest | `{ "error" : "param after invalid" }`        |
+| param `nested_limit` invalid | `400` BadRequest | `{ "error" : "param nested_limit invalid" }` |
+
+## new
+
+----
+  The payload must be valid JSON. To prevent CSRF attacks, you must set
 the `Content-Type` to `application/json` or omit the header
 completely.
 
@@ -89,14 +166,68 @@ default.
 The following keys can be used to POST a new comment, all other fields
 are dropped or replaced with values from the server:
 
-| Field   | Description                                                                                                                                             |
-| :-----: | :-----------------------------------------------------------------------------------------------------------------------------------------------------: |
-| text    | Actual comment, at least three characters long, required.                                                                                               |
-| author  | Comment author, optional.                                                                                                                               |
-| website | Commenter's website (currently no field available in the client JS though), optional.                                                                   |
-| email   | Commenter's email address (can be any arbitrary string though) used to generate the identicon. Limited to 254 characters (RFC specification), optional. |
-| parent  | Integer Reference to parent comment, optional.                                                                                                          |
+* **URL**
+
+  `/new`
+
+  > /new?uri=/thread/
+
+* **Method:**
   
+  `POST`
+  
+* **URL Params**
+
+| field | type   | limit      | desc                                                                             |
+| :---: | :----: | :--------: | :------------------------------------------------------------------------------: |
+| uri   | string | `Required` | The URI of thread to get the comments from.                                      |
+| plain | number | `Optional` | "0" for text which contains html tags,others for keep the text of comment plain. |
+
+* **Payload Params**
+
+| field   | type   | limit      | desc                                                                               |
+| :-----: | :----: | :--------: | :--------------------------------------------------------------------------------: |
+| text    | string | `Required` | The comment’s raw text.                                                           |
+| author  | string | `Optional` | The comment’s author’s name.                                                     |
+| email   | string | `Optional` | The comment’s author’s email address.                                            |
+| website | string | `Optional` | The comment’s author’s website’s url.                                           |
+| parent  | number | `Optional` | The parent comment’s id iff the new comment is a response to an existing comment. |
+
+* **Success Response:**
+
+  * **Code:** 202
+
+  Return a typical comment object
+
+Example:
+
+```output
+$ curl 'https://comments.example.com/new?uri=/thread/' -d '{"text": "Stop saying that! *isso*!", "author": "Max Rant", "email": "rant@example.com", "parent": 15}' -H 'Content-Type: application/json'
+
+{
+  "website": null,
+  "author": "Max Rant",
+  "parent": 15,
+  "created": 1464940838.254393,
+  "text": "&lt;p&gt;Stop saying that! &lt;em&gt;isso&lt;/em&gt;!&lt;/p&gt;",
+  "dislikes": 0,
+  "modified": null,
+  "mode": 1,
+  "hash": "e644f6ee43c0",
+  "id": 23,
+  "likes": 0
+}
+```
+
+* **Error Response:**
+
+| error                        | status code      | response                                     |
+| :--------------------------: | :--------------: | :------------------------------------------: |
+| param `parent` invalid       | `400` BadRequest | `{ "error" : "param parent invalid" }`       |
+| param `limit` invalid        | `400` BadRequest | `{ "error" : "param limit invalid" }`        |
+| param `after` invalid        | `400` BadRequest | `{ "error" : "param after invalid" }`        |
+| param `nested_limit` invalid | `400` BadRequest | `{ "error" : "param nested_limit invalid" }` |
+
 ## Edit comment
 
 When your authentication token is not yet expired, you can issue a PUT
@@ -134,7 +265,6 @@ GET /count?uri=%2Fhello-world%2F
 | Field | Description                          |
 | :---: | :----------------------------------: |
 | uri   | URI to count comments for, required. |
-
 
 returns an integer
 

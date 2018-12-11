@@ -1,0 +1,56 @@
+Name = "LowEntropy"
+
+Hosts = [
+    "http://example.tld/",
+    "https://example.tld/"
+]
+
+Listen = "http://localhost:8080"
+
+
+[Notify]
+Type = "email"
+    [Notify.Log]
+    FilePath = ""
+    [Notify.Email]
+    CanReplyNotifications = true
+        [Notify.Email.Smtp]
+        Username = ""
+        Password = ""
+        Host = ""
+        Port = ""
+        Security = ""
+        To = ""
+        From = ""
+        Timeout = 10
+    [Notify.Telegram]
+    UserID = 9090900
+
+[Database.Sqlite]
+    Path = "../../test.db"
+
+[Admin]
+Enable = true
+Password = "please_choose_a_strong_password"
+
+[Moderation]
+Enable = true
+PurgeAfter = "30d"
+
+[Guard]
+Enable = true
+RateLimit = 2
+DirectReply = 3
+ReplyToSelf = true
+RequireAuthor = true
+RequireEmail = true
+EditMaxAge = "15m"
+
+[Markup]
+Options = ["strikethrough", "autolink", "fenced_code"]
+AdditionalAllowedElements = [""]
+AdditionalAllowedAttributes = [""]
+
+[Hash]
+Salt = ""
+Algorithm = ""
