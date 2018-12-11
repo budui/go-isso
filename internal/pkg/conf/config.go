@@ -62,18 +62,21 @@ type Moderation struct {
 }
 
 type Notify struct {
-	Type     string
 	Log      Log
 	Email    Email
 	Telegram Telegram
 }
 
 type Log struct {
-	Path string
+	Enable   bool
+	FilePath string
 }
 
 type Email struct {
+	Enable                bool
 	CanReplyNotifications bool
+	To                    string
+	From                  string
 	SMTP                  SMTP
 }
 
@@ -83,12 +86,11 @@ type SMTP struct {
 	Host     string
 	Port     string
 	Security string
-	To       string
-	From     string
 	Timeout  int64
 }
 
 type Telegram struct {
+	Enable bool
 	UserID int64
 }
 

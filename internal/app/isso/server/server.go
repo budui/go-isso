@@ -25,7 +25,7 @@ func NewServer(config conf.Config) *Server {
 	s := &Server{
 		Router: way.NewRouter(),
 		Conf:   config,
-		log:    log.New(os.Stdout, "", log.Lshortfile|log.LstdFlags),
+		log:    log.New(os.Stdout, "", log.LstdFlags),
 		db:     db.NewWorker(config.Database.Sqlite.Path, db.Guard{}),
 	}
 	s.Router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

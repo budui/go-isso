@@ -7,24 +7,26 @@ Hosts = [
 
 Listen = "http://localhost:8080"
 
+[Notify.Log]
+Enable = true
+FilePath = ""
 
-[Notify]
-Type = "email"
-    [Notify.Log]
-    FilePath = ""
-    [Notify.Email]
-    CanReplyNotifications = true
-        [Notify.Email.Smtp]
-        Username = ""
-        Password = ""
-        Host = ""
-        Port = ""
-        Security = ""
-        To = ""
-        From = ""
-        Timeout = 10
-    [Notify.Telegram]
-    UserID = 9090900
+[Notify.Email]
+Enable = true
+CanReplyNotifications = true
+To = "your@email.tld"
+From = '"Foo Bar" <isso@example.tld>'
+    [Notify.Email.Smtp]
+    Username = ""
+    Password = ""
+    Host = ""
+    Port = ""
+    Security = ""
+    Timeout = 10
+
+[Notify.Telegram]
+Enable = false
+UserID = 9090900
 
 [Database.Sqlite]
     Path = "../../test.db"

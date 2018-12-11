@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	log.SetFlags(log.Lshortfile | log.LstdFlags)
+	log.SetFlags(log.LstdFlags)
 	configPath := flag.String("c", "./configs/go-isso.toml", "set configuration file")
 	flag.Parse()
 
