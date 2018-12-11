@@ -3,12 +3,11 @@ package db
 import (
 	"database/sql"
 	"errors"
-	"github.com/RayHY/go-isso/internal/app/isso/util"
-
+	"github.com/RayHY/go-isso/internal/pkg/conf"
 	"gopkg.in/guregu/null.v3"
-
-	log "github.com/sirupsen/logrus"
+	"log"
 	// can be easily replaced by mysql etc.
+	"github.com/RayHY/go-isso/internal/app/isso/util"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -46,72 +45,81 @@ var (
 		value VARCHAR
     );
 	`
+
+	// MAYBE replace it with something like pragma_table_info('comments')?
+	convertOldIssoDatabase = `
+		ALTER TABLE comments ADD COLUMN notification INTEGER DEFAULT 0;
+	`
 )
 
-// Worker have all database-related methods.
-type Worker interface {
-	// Prepare prepare all database-related things for isso
-	PrepareToWork() error
-	CountReply(uri string, mode int, after float64) (map[null.Int]int64, error)
-	Fetch(uri string, mode int, after float64, parent null.Int, orderBy string, isASC bool, limit null.Int) ([]Comment, error)
-	Add(uri string, c Comment) (Comment, error)
-	Get(id int64) (Comment, error)
-}
+// Accessor defines all usual access ops avail.
+type Accessor interface {
+	Close() error
 
-// Guard holds all config for database limit
-type Guard struct {
-	IsAlive                        bool
-	RateLimit                      int
-	ReplyLimit                     int
-	CanReplyToSelfWhenCanStillEdit bool
-	NeedAuthor                     bool
-	NeedEmail                      bool
+	// CURD stuff
+
+	// Add new comment to DB and return a complete Comment.
+	Add(uri string, c Comment) (Comment, error)
+	// Update comment `id` with values from `data`
+	Update(id int64, c Comment) (Comment, error)
+	// Search for comment `id` and return a mapping of `fields` and values.
+	Get(id int64) (Comment, error)
+	// Return comment count for main thread and all reply threads for one url.
+	CountReply(uri string, mode int, after float64) (map[null.Int]int64, error)
+	// Return comments for `uri` with `mode`.
+	Fetch(uri string, mode int, after float64, parent null.Int, orderBy string, isASC bool, limit null.Int) ([]Comment, error)
 }
 
 type database struct {
 	*sql.DB
-	guard Guard
+	guard conf.Guard
 }
 
 // NewWorker generate an new DB worker
-func NewWorker(path string, guard Guard) Worker {
+// 1. Open database.
+// 2. Ping database.
+// 3. Create Table comment, thread, preference if they do not exist.
+// 4. Add field `notification` when use old isso database.
+func NewAccessor(path string, guard conf.Guard) (Accessor, error) {
 	db, err := sql.Open("sqlite3", path)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return &database{db, guard}
-}
 
-// PrepareToWork prepare all database-related things for go-isso
-func (db *database) PrepareToWork() error {
-
-	if err := db.Ping(); err != nil {
-		return err
+	if err = db.Ping(); err != nil {
+		return nil, err
 	}
 
 	// if need to add another database support, just use another sql slice.
 	Sqlite3createSQL := []string{createComments, createPreferences, createThreads}
 
-	for _, sql := range Sqlite3createSQL {
-		_, err := db.Exec(sql)
+	for _, InitSql := range Sqlite3createSQL {
+		_, err := db.Exec(InitSql)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
+	// Add field `notification` when use old isso database.
+	// failed when exist `notification`.
+	db.Exec(convertOldIssoDatabase)
 
-	return nil
+	return &database{db, guard}, nil
+}
+
+func (db *database) Close() error {
+	return db.Close()
 }
 
 // CountReply return comment count for main thread and all reply threads for one url.
 func (db *database) CountReply(uri string, mode int, after float64) (map[null.Int]int64, error) {
-	sql := `SELECT comments.parent,count(*)
+	countSQL := `SELECT comments.parent,count(*)
             FROM comments INNER JOIN threads ON
             	threads.uri=? AND comments.tid=threads.id AND
                	(? | comments.mode = ?) AND
                	comments.created > ?
 			GROUP BY comments.parent
 			`
-	rows, err := db.Query(sql, uri, mode, mode, after)
+	rows, err := db.Query(countSQL, uri, mode, mode, after)
 	if err != nil {
 		return nil, err
 	}
@@ -192,9 +200,9 @@ func (db *database) Fetch(uri string, mode int, after float64, parent null.Int, 
 	}
 	defer rows.Close()
 
-	comments := []Comment{}
+	var comments []Comment
 	for rows.Next() {
-		c := Comment{}
+		var c Comment
 
 		err := rows.Scan(&c.tid, &c.ID, &c.Parent, &c.Created, &c.Modified,
 			&c.Mode, &c.remoteAddr, &c.Text, &c.Author, &c.email, &c.Website,
@@ -263,4 +271,9 @@ func (db *database) Get(id int64) (Comment, error) {
 		return Comment{}, err
 	}
 	return c, err
+}
+
+func (db *database) Update(id int64, c Comment) (Comment, error) {
+	nc := Comment{}
+	return nc, nil
 }

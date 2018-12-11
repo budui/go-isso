@@ -15,41 +15,43 @@ import (
 // it keep the all shared dependencies.
 type Server struct {
 	Router *way.Router
-	db     db.Worker
+	db     db.Accessor
 	Conf   conf.Config
 	log    *log.Logger
 }
 
 // NewServer make a new Server
-func NewServer(config conf.Config) *Server {
+func NewServer(config conf.Config) (*Server, error) {
+	accessor, err := db.NewAccessor(config.Database.Sqlite.Path, config.Guard)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &Server{
 		Router: way.NewRouter(),
 		Conf:   config,
 		log:    log.New(os.Stdout, "", log.LstdFlags),
-		db:     db.NewWorker(config.Database.Sqlite.Path, db.Guard{}),
+		db:     accessor,
 	}
+
 	s.Router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusText(404), 404)
 	})
+
 	s.registerRouters()
 
-	return s
+	return s, nil
 }
 
 // Run the Server
 func (s *Server) Run() error {
-	err := s.db.PrepareToWork()
-	if err != nil {
-		return err
-	}
-	listenAddr := s.Conf.Listen
-	s.log.Printf("[INFO] Listening and serving HTTP on %s\n", listenAddr)
+	s.log.Printf("[INFO] Listening and serving HTTP on %s\n", s.Conf.Listen)
 	// TODO middleware wrap s.Router.
 	Router := s.LoggingHandler(s.Router)
-	return http.ListenAndServe(strings.TrimPrefix(listenAddr, "http://"), Router)
+	return http.ListenAndServe(strings.TrimPrefix(s.Conf.Listen, "http://"), Router)
 }
 
 // Close clear all res used by server.
 func (s *Server) Close() {
-
+	s.db.Close()
 }

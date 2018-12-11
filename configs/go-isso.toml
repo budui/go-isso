@@ -29,7 +29,7 @@ Enable = false
 UserID = 9090900
 
 [Database.Sqlite]
-    Path = "../../test.db"
+    Path = "./comments.db"
 
 [Admin]
 Enable = true
@@ -41,12 +41,14 @@ PurgeAfter = "30d"
 
 [Guard]
 Enable = true
+# API limit
 RateLimit = 2
+EditMaxAge = "15m"
+# database limit
 DirectReply = 3
 ReplyToSelf = true
 RequireAuthor = true
 RequireEmail = true
-EditMaxAge = "15m"
 
 [Markup]
 Options = ["strikethrough", "autolink", "fenced_code"]

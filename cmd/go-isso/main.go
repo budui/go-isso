@@ -18,10 +18,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("[FATA] Load Config Failed %v", err)
 	}
-	isso := server.NewServer(config)
+
+	isso, err := server.NewServer(config)
 	defer isso.Close()
+	if err != nil {
+		log.Fatalf("[FATA] Start Server Failed %v", err)
+	}
 
 	if err := isso.Run(); err != nil {
-		log.Fatalf("Could not start server: %s\n", err.Error())
+		log.Fatalf("[FATA] Could not start server: %s\n", err.Error())
 	}
 }
