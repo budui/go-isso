@@ -1,0 +1,8 @@
+POST http://localhost:8080/new?uri=/about/
+Accept: */*
+Cache-Control: no-cache
+
+{"text": "Stop saying that! *isso*!", "author": "Max Rant", "email": "rant@example.com", "parent": 15}
+
+###
+

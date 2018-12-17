@@ -156,10 +156,9 @@ func (s *Server) handleFetch() http.HandlerFunc {
 }
 
 func (s *Server) handleNew() http.HandlerFunc {
-	modeflag := s.Conf.Moderation.Enable
 	var mode int64
 	var successCode int
-	if modeflag {
+	if s.Conf.Moderation.Enable {
 		mode = 1
 		successCode = 201
 	} else {
