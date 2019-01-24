@@ -1,14 +1,15 @@
 package server
 
 import (
-	"log"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/RayHY/go-isso/internal/app/isso/util"
 	"github.com/RayHY/go-isso/internal/app/isso/way"
 	"github.com/RayHY/go-isso/internal/pkg/conf"
 	"github.com/RayHY/go-isso/internal/pkg/db"
+	log "github.com/RayHY/go-isso/internal/pkg/dlog"
 )
 
 // Server is the main struct for isso.
@@ -18,20 +19,29 @@ type Server struct {
 	db     db.Accessor
 	Conf   conf.Config
 	log    *log.Logger
+	hw     *util.HashWorker
+	mdc    *util.MDConverter
 }
 
 // NewServer make a new Server
-func NewServer(config conf.Config) (*Server, error) {
+func NewServer(config conf.Config, inDebugMode bool) (*Server, error) {
 	accessor, err := db.NewAccessor(config.Database.Sqlite.Path, config.Guard)
 	if err != nil {
 		return nil, err
 	}
+	hw, err := util.NewHashWorker(config.Hash.Algorithm, config.Hash.Salt)
+	if err != nil {
+		return nil, err
+	}
+	mdc := util.NewMDConverter(config.Markup)
 
 	s := &Server{
 		Router: way.NewRouter(),
 		Conf:   config,
-		log:    log.New(os.Stdout, "", log.LstdFlags),
+		log:    log.New(os.Stdout, "", log.LstdFlags, inDebugMode),
 		db:     accessor,
+		hw:     hw,
+		mdc:    mdc,
 	}
 
 	s.Router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +55,7 @@ func NewServer(config conf.Config) (*Server, error) {
 
 // Run the Server
 func (s *Server) Run() error {
-	s.log.Printf("[INFO] Listening and serving HTTP on %s\n", s.Conf.Listen)
+	s.log.Infof("Listening and serving HTTP on %s\n", s.Conf.Listen)
 	// TODO middleware wrap s.Router.
 	Router := s.LoggingHandler(s.Router)
 	return http.ListenAndServe(strings.TrimPrefix(s.Conf.Listen, "http://"), Router)
@@ -53,5 +63,5 @@ func (s *Server) Run() error {
 
 // Close clear all res used by server.
 func (s *Server) Close() {
-	s.db.Close()
+	_ = s.db.Close()
 }

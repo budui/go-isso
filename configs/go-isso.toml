@@ -51,10 +51,32 @@ RequireAuthor = true
 RequireEmail = true
 
 [Markup]
-Options = ["strikethrough", "autolink", "fenced_code"]
-AdditionalAllowedElements = [""]
-AdditionalAllowedAttributes = [""]
+# bitwise or'ed collection of enabled Blackfriday's extensions
+# And control optional behavior of HTML renderer.
+# use negative number for default setting.
+# if you want to change setting, please change & run code in
+# https://play.golang.org/p/1CW9x83uk1I
+# to get the corresponding numbers.
+ExtensionsInt = -1
+HTMLFlagsInt = -1
+# Additional HTML tags to allow in the generated output, comma-separated. By
+# default, only a, blockquote, br, code, del, em, h1, h2, h3, h4, h5, h6, hr,
+# ins, li, ol, p, pre, strong, table, tbody, td, th, thead and ul are allowed.
+AdditionalAllowedElements = []
+# Additional HTML attributes (independent from elements) to allow in the
+# generated output, comma-separated. By default, only align and href are
+# allowed.
+AdditionalAllowedAttributes = []
 
 [Hash]
-Salt = ""
-Algorithm = ""
+# A salt is used to protect against rainbow tables. Isso does not make use of
+# pepper (yet). The default value has been in use since the release of Isso and
+# generates the same identicons for same addresses across installations.
+Salt = "Eech7co8Ohloopo9Ol6baimi"
+# Hash algorithm to use -- For now, go-isso ONLY support pbkdf2 algorithm.
+#
+# The actual identifier for PBKDF2 is pbkdf2:1000:6:sha1, which means 1000
+# iterations, 6 bytes to generate and SHA1 as pseudo-random family used for key
+# strengthening. Arguments have to be in that order, but can be reduced to
+# pbkdf2:4096 for example to override the iterations only.
+Algorithm = "pbkdf2"

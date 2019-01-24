@@ -25,7 +25,7 @@ func (s *Server) LoggingHandler(h http.Handler) http.Handler {
 		start := time.Now()
 		lrw := newLoggingResponseWriter(w)
 		h.ServeHTTP(lrw, r)
-		s.log.Printf("[DEBUG] %s - %s \"%s %s\" %d %s", r.RemoteAddr, start.Format("02/Jan/2006:15:04:05 -0700"),
+		s.log.Debugf("%s - %s \"%s %s\" %d %s", r.RemoteAddr, start.Format("02/Jan/2006:15:04:05 -0700"),
 			r.Method, r.URL.Path, lrw.statusCode, time.Since(start))
 	})
 }

@@ -10,22 +10,26 @@ import (
 )
 
 func main() {
-	log.SetFlags(log.LstdFlags)
+	inDebugMode := flag.Bool("d", false, "run go-isso in debug mode")
 	configPath := flag.String("c", "./configs/go-isso.toml", "set configuration file")
 	flag.Parse()
+
+	if *inDebugMode {
+		log.Print("[INFO] RUN IN DEBUG MODE.")
+	}
 
 	config, err := conf.Load(*configPath)
 	if err != nil {
 		log.Fatalf("[FATA] Load Config Failed %v", err)
 	}
 
-	isso, err := server.NewServer(config)
+	isso, err := server.NewServer(config, *inDebugMode)
 	defer isso.Close()
 	if err != nil {
-		log.Fatalf("[FATA] Start Server Failed %v", err)
+		log.Fatalf("[FATA] Failed to Setup Application %v", err)
 	}
 
 	if err := isso.Run(); err != nil {
-		log.Fatalf("[FATA] Could not start server: %s\n", err.Error())
+		log.Fatalf("[FATA] Could Not Run Server: %s", err.Error())
 	}
 }

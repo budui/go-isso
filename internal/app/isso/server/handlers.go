@@ -21,7 +21,7 @@ func jSON(w http.ResponseWriter, v interface{}, status int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	encoder := json.NewEncoder(w)
-	encoder.Encode(v)
+	_ = encoder.Encode(v)
 }
 
 func jsonError(w http.ResponseWriter, message string, status int) {
@@ -34,7 +34,7 @@ func (s *Server) handleStatusCode(code int) http.HandlerFunc {
 	}
 }
 
-// TODO: params plain for plain text or contains html tag
+// example 'https://comments.example.com/?uri=/thread/&limit=2&nested_limit=5'
 func (s *Server) handleFetch() http.HandlerFunc {
 	parseURLParams2nullInts := func(w http.ResponseWriter, Q url.Values, keys []string, vars []*null.Int) error {
 		for i, k := range keys {
@@ -44,8 +44,8 @@ func (s *Server) handleFetch() http.HandlerFunc {
 			}
 			realV, err := strconv.Atoi(resultSlice[0])
 			if err != nil || realV < 0 {
-				jsonError(w, fmt.Sprintf("param %s invalid", k), 400)
-				return errors.New("Invalid param")
+				jsonError(w, fmt.Sprintf("param '%s' invalid", k), 400)
+				return errors.New("invalid param")
 			}
 			*(vars[i]) = null.IntFrom(int64(realV))
 		}
@@ -55,7 +55,7 @@ func (s *Server) handleFetch() http.HandlerFunc {
 		db.Comment
 		HiddenReplies *int64  `json:"hidden_replies,omitempty"`
 		TotalReplies  *int64  `json:"total_replies,omitempty"`
-		Replies       []reply `json:"replies,omitempty"`
+		Replies       []reply `json:"replies"`
 	}
 	type FetchedComments struct {
 		TotalReplies  int64    `json:"total_replies"`
@@ -80,18 +80,22 @@ func (s *Server) handleFetch() http.HandlerFunc {
 		} else {
 			after, err = strconv.ParseFloat(resultSlice[0], 64)
 			if err != nil {
-				jsonError(w, "param after invalid", 400)
+				jsonError(w, "param 'after' invalid", 400)
 				return
 			}
 		}
 
-		var limit, parent, nestedLimit null.Int
-		err = parseURLParams2nullInts(w, RQuery,
-			[]string{"limit", "parent", "nested_limit"},
-			[]*null.Int{&limit, &parent, &nestedLimit},
-		)
-		if err != nil {
+		var limit, parent, nestedLimit, plain null.Int
+
+		if err := parseURLParams2nullInts(w, RQuery,
+			[]string{"limit", "parent", "nested_limit", "plain"},
+			[]*null.Int{&limit, &parent, &nestedLimit, &plain},
+		); err != nil {
 			return
+		}
+
+		if !(plain.Int64 == 0 || plain.Int64 == 1) {
+			jsonError(w, "param 'plain' invalid : can only be 1 or 0", 400)
 		}
 
 		replyCounts, err := s.db.CountReply(uri, db.ModePublic, after)
@@ -119,8 +123,10 @@ func (s *Server) handleFetch() http.HandlerFunc {
 			}
 			replies := []reply{}
 			for _, c := range comments {
-				//TODO: need generate hash for comment email(or ip).
-				//like this: c.Hash(methods string, meta) ! a methods for comment or anothor pkg.
+				c.Hash = s.hw.Hash(c.EmailOrIP())
+				if !plain.Valid || plain.Int64 != 1 {
+					c.Text = s.mdc.Run(c.Text)
+				}
 				r := reply{c, nil, nil, []reply{}}
 				replies = append(replies, r)
 			}
@@ -211,6 +217,6 @@ func (s *Server) handleHello() http.HandlerFunc {
 		name := way.Param(r.Context(), "name")
 		w.Header().Set("Content-Type", "text/plain")
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, fmt.Sprintf("hello, %s", name))
+		_, _ = io.WriteString(w, fmt.Sprintf("hello, %s", name))
 	}
 }

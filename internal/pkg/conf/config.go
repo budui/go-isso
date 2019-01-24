@@ -51,7 +51,8 @@ type Hash struct {
 }
 
 type Markup struct {
-	Options                     []string
+	ExtensionsInt               int
+	HTMLFlagsInt                int
 	AdditionalAllowedElements   []string
 	AdditionalAllowedAttributes []string
 }
