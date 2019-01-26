@@ -132,7 +132,7 @@ type commentAccessor interface {
 	// Add new comment to DB and return a complete Comment.
 	Add(uri string, c Comment) (Comment, error)
 	// Update comment `id` with values from `data`
-	Update(id int64, c Comment) (Comment, error)
+	Update(id int64, text string, author, website null.String) (Comment, error)
 	// Search for comment `id` and return a mapping of `fields` and values.
 	Get(id int64) (Comment, error)
 	// Return comment count for main thread and all reply threads for one url.
@@ -304,7 +304,19 @@ func (db *database) Get(id int64) (Comment, error) {
 	return c, err
 }
 
-func (db *database) Update(id int64, c Comment) (Comment, error) {
-	nc := Comment{}
-	return nc, nil
+func (db *database) Update(id int64, text string, author, website null.String) (Comment, error) {
+	stmt, err := db.Prepare(`UPDATE comments SET modified = ?, text = ?, author = ?, website = ? WHERE id=?;`)
+	if err != nil {
+		return Comment{}, err
+	}
+	_, err = stmt.Exec(float64(time.Now().UnixNano())/float64(1e9), text, author, website, id)
+	if err != nil {
+		return Comment{}, err
+	}
+
+	c, err := db.Get(id)
+	if err != nil {
+		return Comment{}, err
+	}
+	return c, nil
 }

@@ -20,6 +20,31 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
+var parseURLParams2nullInts = func(w http.ResponseWriter, Q url.Values, keys []string, vars []*null.Int) error {
+	for i, k := range keys {
+		resultSlice, ok := Q[k]
+		if !ok {
+			continue
+		}
+		realV, err := strconv.Atoi(resultSlice[0])
+		if err != nil || realV < 0 {
+			jsonError(w, fmt.Sprintf("param '%s' invalid", k), 400)
+			return errors.New("invalid param")
+		}
+		*(vars[i]) = null.IntFrom(int64(realV))
+	}
+	return nil
+}
+var sanitizeUserInput = func(in null.String) null.String {
+	if !in.Valid {
+		return in
+	}
+	var out null.String
+	out.Valid = true
+	out.String = html.EscapeString(bluemonday.UGCPolicy().Sanitize(in.String))
+	return out
+}
+
 func jSON(w http.ResponseWriter, v interface{}, status int) {
 	// Set before WriteHeader cause https://golang.org/pkg/net/http/?#ResponseWriter
 	w.Header().Set("Content-Type", "application/json")
@@ -40,21 +65,7 @@ func (s *Server) handleStatusCode(code int) http.HandlerFunc {
 
 // example 'https://comments.example.com/?uri=/thread/&limit=2&nested_limit=5'
 func (s *Server) handleFetch() http.HandlerFunc {
-	parseURLParams2nullInts := func(w http.ResponseWriter, Q url.Values, keys []string, vars []*null.Int) error {
-		for i, k := range keys {
-			resultSlice, ok := Q[k]
-			if !ok {
-				continue
-			}
-			realV, err := strconv.Atoi(resultSlice[0])
-			if err != nil || realV < 0 {
-				jsonError(w, fmt.Sprintf("param '%s' invalid", k), 400)
-				return errors.New("invalid param")
-			}
-			*(vars[i]) = null.IntFrom(int64(realV))
-		}
-		return nil
-	}
+
 	type reply struct {
 		db.Comment
 		HiddenReplies *int64  `json:"hidden_replies,omitempty"`
@@ -175,17 +186,6 @@ func (s *Server) handleNew() http.HandlerFunc {
 		mode = 2
 		successCode = 202
 	}
-	p := bluemonday.UGCPolicy()
-
-	sanitizeUserInput := func(in null.String) null.String {
-		if !in.Valid {
-			return in
-		}
-		var out null.String
-		out.Valid = true
-		out.String = html.EscapeString(p.Sanitize(in.String))
-		return out
-	}
 
 	var titleExtractor = service.NewTitleExtractor(http.Client{Timeout: time.Second * 5})
 
@@ -254,7 +254,81 @@ func (s *Server) handleNew() http.HandlerFunc {
 		}
 
 		// TODO: session and cookies for editing comments.
+
+		c.Hash = s.hw.Hash(c.EmailOrIP())
+		c.Text = s.mdc.Run(c.Text)
 		jSON(w, c, successCode)
+	}
+}
+
+// example 'https://comments.example.com/id/4'
+func (s *Server) handleView() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var id = way.Param(r.Context(), "id")
+		intID, err := strconv.Atoi(id)
+		if err != nil {
+			jsonError(w, "Invalid ID", http.StatusBadRequest)
+			return
+		}
+		c, err := s.db.Get(int64(intID))
+		if err != nil {
+			jsonError(w, fmt.Sprintf("Can't get corresponding comment %s", err), http.StatusBadRequest)
+			return
+		}
+
+		var plain null.Int
+		err = parseURLParams2nullInts(w, r.URL.Query(), []string{"plain"}, []*null.Int{&plain})
+		if err != nil {
+			jsonError(w, "param 'plain' invalid : can only be 1 or 0", http.StatusBadRequest)
+		}
+		if !plain.Valid || plain.Int64 != 1 {
+			c.Text = s.mdc.Run(c.Text)
+		}
+		jSON(w, c, 200)
+	}
+}
+
+// curl -X PUT 'https://comments.example.com/id/23' -d \
+// {"text": "I see your point. However, I still disagree.", "website":\
+// "maxrant.important.com"} -H 'Content-Type: application/json' -b cookie.txt
+func (s *Server) handleEdit() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO: first check whether user can edit this comment.
+		var nc struct {
+			Text    string      `json:"text"`
+			Author  null.String `json:"author"`
+			Website null.String `json:"website"`
+		}
+		err := json.NewDecoder(http.MaxBytesReader(w, r.Body, int64(1<<14))).Decode(&nc)
+		if err != nil {
+			s.log.Printf("[ERROR] @api.edit: decode input json failed - %v", err)
+			jsonError(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+		nc.Website = sanitizeUserInput(nc.Website)
+		nc.Author = sanitizeUserInput(nc.Author)
+		if len(nc.Text) < 3 || len(nc.Text) > 65535 {
+			s.log.Printf("[ERROR] @api.edit: input text size too long or too small")
+			jsonError(w, "input text size too long or too small", http.StatusBadRequest)
+			return
+		}
+
+		id, err := strconv.Atoi(way.Param(r.Context(), "id"))
+		c, err := s.db.Update(int64(id), nc.Text, nc.Author, nc.Website)
+		if err != nil {
+			jsonError(w, fmt.Sprintf("Can't update corresponding comment %s", err), http.StatusInternalServerError)
+			return
+		}
+
+		var plain null.Int
+		err = parseURLParams2nullInts(w, r.URL.Query(), []string{"plain"}, []*null.Int{&plain})
+		if err != nil {
+			jsonError(w, "param 'plain' invalid : can only be 1 or 0", http.StatusBadRequest)
+		}
+		if !plain.Valid || plain.Int64 != 1 {
+			c.Text = s.mdc.Run(c.Text)
+		}
+		jSON(w, c, 200)
 	}
 }
 
