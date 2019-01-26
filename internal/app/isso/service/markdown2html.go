@@ -1,4 +1,4 @@
-package util
+package service
 
 import (
 	"github.com/RayHY/go-isso/internal/pkg/conf"

@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/RayHY/go-isso/internal/app/isso/util"
+	"github.com/RayHY/go-isso/internal/app/isso/service"
 	"github.com/RayHY/go-isso/internal/app/isso/way"
 	"github.com/RayHY/go-isso/internal/pkg/conf"
 	"github.com/RayHY/go-isso/internal/pkg/db"
@@ -19,8 +19,8 @@ type Server struct {
 	db     db.Accessor
 	Conf   conf.Config
 	log    *log.Logger
-	hw     *util.HashWorker
-	mdc    *util.MDConverter
+	hw     *service.HashWorker
+	mdc    *service.MDConverter
 }
 
 // NewServer make a new Server
@@ -29,11 +29,11 @@ func NewServer(config conf.Config, inDebugMode bool) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	hw, err := util.NewHashWorker(config.Hash.Algorithm, config.Hash.Salt)
+	hw, err := service.NewHashWorker(config.Hash.Algorithm, config.Hash.Salt)
 	if err != nil {
 		return nil, err
 	}
-	mdc := util.NewMDConverter(config.Markup)
+	mdc := service.NewMDConverter(config.Markup)
 
 	s := &Server{
 		Router: way.NewRouter(),

@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 
-	"github.com/RayHY/go-isso/internal/app/isso/util"
+	"github.com/RayHY/go-isso/internal/app/isso/service"
 	"gopkg.in/guregu/null.v3"
 )
 
@@ -52,9 +53,10 @@ type Comment struct {
 
 // NewComment return a new comment struct with setable fileds.
 // ID, tid, or others generate later
-func NewComment(Parent null.Int, mode int64, remoteAddr string,
+func NewComment(tid int64, Parent null.Int, mode int64, remoteAddr string,
 	text string, author, email, website null.String, notification int64) Comment {
 	c := Comment{
+		tid:          tid,
 		Parent:       Parent,
 		Mode:         mode,
 		remoteAddr:   remoteAddr,
@@ -78,7 +80,8 @@ func (c *Comment) EmailOrIP() string {
 // Verify check comment invalid or valid
 func (c *Comment) Verify() error {
 	emailRegex := "[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?"
-	WebsiteRegex := `[(http(s)?):\/\/(www\.)?a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)`
+
+	WebsiteRegex := `^(?:http(s)?:\/\/)?[\w.-]+(?:\.[\w\.-]+)+[\w\-\._~:/?#[\]@!\$&'\(\)\*\+,;=.]+$`
 	if len(c.Text) < 3 {
 		return errors.New("text is too short (minimum length: 3)")
 	}
@@ -89,7 +92,15 @@ func (c *Comment) Verify() error {
 		return errors.New("parent must be an integer > 0")
 	}
 
+	if c.Author.Valid {
+		c.Author.String = strings.TrimSpace(c.Author.String)
+		if len(c.Author.String) > 63 {
+			return errors.New("too long author name")
+		}
+	}
+
 	if c.email.Valid {
+		c.email.String = strings.TrimSpace(c.email.String)
 		if len(c.email.String) > 254 {
 			return errors.New("too long email")
 		}
@@ -100,6 +111,7 @@ func (c *Comment) Verify() error {
 	}
 
 	if c.Website.Valid {
+		c.Website.String = strings.TrimSpace(c.Website.String)
 		if len(c.email.String) > 254 {
 			return errors.New("arbitrary length limit")
 		}
@@ -249,7 +261,7 @@ func (db *database) Add(uri string, c Comment) (Comment, error) {
 		c.Parent = parent.Parent
 	}
 
-	c.voters = util.GenBloomfilterfunc(c.remoteAddr)
+	c.voters = service.GenBloomfilterfunc(c.remoteAddr)
 
 	stmt, err := db.Prepare(`
 	INSERT INTO comments (

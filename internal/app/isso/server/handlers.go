@@ -4,16 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/RayHY/go-isso/internal/app/isso/service"
+	"github.com/microcosm-cc/bluemonday"
+	"html"
 	"io"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
-
-	"gopkg.in/guregu/null.v3"
+	"time"
 
 	"github.com/RayHY/go-isso/internal/app/isso/way"
 	"github.com/RayHY/go-isso/internal/pkg/db"
+	"gopkg.in/guregu/null.v3"
 )
 
 func jSON(w http.ResponseWriter, v interface{}, status int) {
@@ -171,6 +175,19 @@ func (s *Server) handleNew() http.HandlerFunc {
 		mode = 2
 		successCode = 202
 	}
+	p := bluemonday.UGCPolicy()
+
+	sanitizeUserInput := func(in null.String) null.String {
+		if !in.Valid {
+			return in
+		}
+		var out null.String
+		out.Valid = true
+		out.String = html.EscapeString(p.Sanitize(in.String))
+		return out
+	}
+
+	var titleExtractor = service.NewTitleExtractor(http.Client{Timeout: time.Second * 5})
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		uris, ok := r.URL.Query()["uri"]
@@ -190,24 +207,53 @@ func (s *Server) handleNew() http.HandlerFunc {
 		}
 		err := json.NewDecoder(http.MaxBytesReader(w, r.Body, int64(1<<14))).Decode(&nc)
 		if err != nil {
+			s.log.Printf("[ERROR] @api.new: decode input json failed - %v", err)
 			jsonError(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
+		nc.Website = sanitizeUserInput(nc.Website)
+		nc.Email = sanitizeUserInput(nc.Email)
+		nc.Author = sanitizeUserInput(nc.Author)
 
-		c := db.NewComment(nc.Parent, mode, strings.Split(r.RemoteAddr, ":")[0], nc.Text,
+		var thread db.Thread
+		if ok, err := s.db.Contains(uri); err != nil {
+			if ok {
+				thread, _ = s.db.GetThreadWithURI(uri)
+			} else {
+				if !nc.Title.Valid {
+					title, err := titleExtractor.Get(path.Join(s.Conf.Hosts[0], uri))
+					if err != nil {
+						s.log.Printf("[ERROR] @api.new: get thread page(%v) failed - %v", uri, err)
+						jsonError(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					}
+					nc.Title.SetValid(title)
+				}
+				thread, err = s.db.NewThread(uri, nc.Title)
+				if err != nil {
+					s.log.Printf("[ERROR] @api.new: new thread(%v, %v) failed - %v", uri, nc.Title, err)
+					jsonError(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				}
+			}
+		} else {
+			s.log.Printf("[ERROR] @api.new: check new uri(%s) failed - %v", uri, err)
+			jsonError(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
+
+		c := db.NewComment(thread.ID, nc.Parent, mode, strings.Split(r.RemoteAddr, ":")[0], nc.Text,
 			nc.Author, nc.Email, nc.Website, nc.Notification)
-
 		if err := c.Verify(); err != nil {
+			s.log.Printf("[ERROR] @api.new: verify user input failed - %v", err)
 			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
 		c, err = s.db.Add(uri, c)
 		if err != nil {
-			s.log.Printf("[ERROR]:%v", err)
+			s.log.Printf("[ERROR] @api.new: can not add comment into database - %v", err)
 			jsonError(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 			return
 		}
+
+		// TODO: session and cookies for editing comments.
 		jSON(w, c, successCode)
 	}
 }

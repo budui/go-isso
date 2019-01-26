@@ -1,4 +1,4 @@
-package util
+package service
 
 type Bloomfilter struct {
 	Array    []byte
