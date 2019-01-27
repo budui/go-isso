@@ -26,6 +26,6 @@ func (s *Server) LoggingHandler(h http.Handler) http.Handler {
 		lrw := newLoggingResponseWriter(w)
 		h.ServeHTTP(lrw, r)
 		s.log.Debugf("%s - %s \"%s %s\" %d %s", r.RemoteAddr, start.Format("02/Jan/2006:15:04:05 -0700"),
-			r.Method, r.URL.Path, lrw.statusCode, time.Since(start))
+			r.Method, r.URL, lrw.statusCode, time.Since(start))
 	})
 }

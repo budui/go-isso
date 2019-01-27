@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
@@ -152,7 +153,7 @@ func (db *database) CountReply(uri string, mode int, after float64) (map[null.In
 			`
 	rows, err := db.Query(countSQL, uri, mode, mode, after)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db.CountReply: %v", err)
 	}
 	defer rows.Close()
 	countResult := make(map[null.Int]int64)
@@ -161,13 +162,13 @@ func (db *database) CountReply(uri string, mode int, after float64) (map[null.In
 	for rows.Next() {
 		err := rows.Scan(&parent, &count)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("db.CountReply: %v", err)
 		}
 		countResult[parent] = count
 	}
 	err = rows.Err()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db.CountReply: %v", err)
 	}
 	return countResult, nil
 }
@@ -227,7 +228,7 @@ func (db *database) Fetch(uri string, mode int, after float64, parent null.Int, 
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db.Fetch: %v", err)
 	}
 	defer rows.Close()
 
@@ -240,13 +241,13 @@ func (db *database) Fetch(uri string, mode int, after float64, parent null.Int, 
 			&c.Likes, &c.Dislikes, &c.voters, &c.notification,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("db.Fetch: %v", err)
 		}
 		comments = append(comments, c)
 	}
 	err = rows.Err()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("db.Fetch: %v", err)
 	}
 	return comments, nil
 }
@@ -256,7 +257,7 @@ func (db *database) Add(uri string, c Comment) (Comment, error) {
 	if c.Parent.Valid {
 		parent, err := db.Get(c.Parent.Int64)
 		if err != nil {
-			return Comment{}, err
+			return Comment{}, fmt.Errorf("db.Add: %v", err)
 		}
 		c.Parent = parent.Parent
 	}
@@ -271,12 +272,12 @@ func (db *database) Add(uri string, c Comment) (Comment, error) {
     SELECT threads.id, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 			FROM threads WHERE threads.uri = ?;`)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, fmt.Errorf("db.Add: %v", err)
 	}
 	_, err = stmt.Exec(c.Parent, c.Created, c.Modified, c.Mode, c.remoteAddr,
 		c.Text, c.Author, c.email, c.Website, c.voters, c.notification, uri)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, fmt.Errorf("db.Add: %v", err)
 	}
 
 	err = db.QueryRow(`SELECT c.* FROM comments AS c INNER JOIN threads ON threads.uri = ? ORDER BY c.id DESC LIMIT 1`, uri).Scan(
@@ -285,7 +286,7 @@ func (db *database) Add(uri string, c Comment) (Comment, error) {
 		&c.Likes, &c.Dislikes, &c.voters, &c.notification,
 	)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, fmt.Errorf("db.Add: %v", err)
 	}
 	return c, nil
 }
@@ -299,24 +300,24 @@ func (db *database) Get(id int64) (Comment, error) {
 		&c.Likes, &c.Dislikes, &c.voters, &c.notification,
 	)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, fmt.Errorf("db.Get: %v", err)
 	}
-	return c, err
+	return c, nil
 }
 
 func (db *database) Update(id int64, text string, author, website null.String) (Comment, error) {
 	stmt, err := db.Prepare(`UPDATE comments SET modified = ?, text = ?, author = ?, website = ? WHERE id=?;`)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, fmt.Errorf("db.Update: %v", err)
 	}
 	_, err = stmt.Exec(float64(time.Now().UnixNano())/float64(1e9), text, author, website, id)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, fmt.Errorf("db.Update: %v", err)
 	}
 
 	c, err := db.Get(id)
 	if err != nil {
-		return Comment{}, err
+		return Comment{}, fmt.Errorf("db.Update: %v", err)
 	}
 	return c, nil
 }

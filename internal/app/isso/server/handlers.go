@@ -2,9 +2,9 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/RayHY/go-isso/internal/app/isso/service"
+	"github.com/RayHY/go-isso/internal/pkg/dlog"
 	"github.com/microcosm-cc/bluemonday"
 	"html"
 	"io"
@@ -20,29 +20,66 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-var parseURLParams2nullInts = func(w http.ResponseWriter, Q url.Values, keys []string, vars []*null.Int) error {
-	for i, k := range keys {
-		resultSlice, ok := Q[k]
+func parseURLParam2type(Q url.Values, key string, item interface{}) error {
+	r, ok := Q[key]
+	switch value := item.(type) {
+	case *null.String:
 		if !ok {
-			continue
+			*value = null.NewString("", false)
+			return nil
 		}
-		realV, err := strconv.Atoi(resultSlice[0])
-		if err != nil || realV < 0 {
-			jsonError(w, fmt.Sprintf("param '%s' invalid", k), 400)
-			return errors.New("invalid param")
+		*value = null.StringFrom(r[0])
+	case *null.Int:
+		if !ok {
+			*value = null.NewInt(0, false)
+			return nil
 		}
-		*(vars[i]) = null.IntFrom(int64(realV))
+		v, err := strconv.Atoi(r[0])
+		if err != nil || v < 0 {
+			*value = null.NewInt(0, false)
+			return fmt.Errorf("param '%s' invalid", key)
+		}
+		*value = null.IntFrom(int64(v))
+	case *float64:
+		if !ok {
+			*value = 0.00
+			return nil
+		}
+		v, err := strconv.ParseFloat(r[0], 64)
+		if err != nil {
+			*value = 0.00
+			return fmt.Errorf("param '%s' invalid", key)
+		}
+		*value = v
+	default:
+		panic(fmt.Sprintf("do not support type : %T", value))
 	}
 	return nil
 }
-var sanitizeUserInput = func(in null.String) null.String {
+
+func sanitizeUserInput(in null.String) null.String {
 	if !in.Valid {
 		return in
 	}
-	var out null.String
-	out.Valid = true
-	out.String = html.EscapeString(bluemonday.UGCPolicy().Sanitize(in.String))
-	return out
+	return null.StringFrom(html.EscapeString(bluemonday.UGCPolicy().Sanitize(in.String)))
+}
+
+func getAPIExceptionHandler(logger *dlog.Logger, APIName string) func(http.ResponseWriter, string, error, int) {
+	return func(w http.ResponseWriter, info string, err error, code int) {
+		levelName := "ERROR"
+		if code < http.StatusInternalServerError {
+			levelName = "WARN"
+			jsonError(w, info, code)
+		} else {
+			http.Error(w, http.StatusText(code), code)
+		}
+
+		if err != nil {
+			logger.Printf("[%s] @api.%s: %s - %v", levelName, APIName, info, err)
+		} else {
+			logger.Printf("[%s] @api.%s: %s", levelName, APIName, info)
+		}
+	}
 }
 
 func jSON(w http.ResponseWriter, v interface{}, status int) {
@@ -65,75 +102,64 @@ func (s *Server) handleStatusCode(code int) http.HandlerFunc {
 
 // example 'https://comments.example.com/?uri=/thread/&limit=2&nested_limit=5'
 func (s *Server) handleFetch() http.HandlerFunc {
-
+	ExceptionHandler := getAPIExceptionHandler(s.log, "Fetch")
 	type reply struct {
 		db.Comment
 		HiddenReplies *int64  `json:"hidden_replies,omitempty"`
 		TotalReplies  *int64  `json:"total_replies,omitempty"`
 		Replies       []reply `json:"replies"`
 	}
-	type FetchedComments struct {
-		TotalReplies  int64    `json:"total_replies"`
-		Replies       []reply  `json:"replies"`
-		ID            null.Int `json:"id"`
-		HiddenReplies int64    `json:"hidden_replies"`
-	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		RQuery := r.URL.Query()
-		uris, ok := RQuery["uri"]
-		if !ok {
-			jsonError(w, "missing uri query", 400)
-			return
-		}
-		uri := uris[0]
-		// parse params
+		var uri null.String
+		var limit, parent, nestedLimit, plain null.Int
 		var after float64
-		var err error
-		resultSlice, ok := RQuery["after"]
-		if !ok {
-			after = 0.00
-		} else {
-			after, err = strconv.ParseFloat(resultSlice[0], 64)
+
+		URLParamsPair := map[string]interface{}{
+			"uri": &uri, "limit": &limit, "parent": &parent,
+			"nested_limit": &nestedLimit, "plain": &plain, "after": &after,
+		}
+
+		for k, v := range URLParamsPair {
+			err := parseURLParam2type(r.URL.Query(), k, v)
 			if err != nil {
-				jsonError(w, "param 'after' invalid", 400)
+				ExceptionHandler(w, fmt.Sprintf("parse param '%s' failed", k), err, http.StatusBadRequest)
 				return
 			}
 		}
-
-		var limit, parent, nestedLimit, plain null.Int
-
-		if err := parseURLParams2nullInts(w, RQuery,
-			[]string{"limit", "parent", "nested_limit", "plain"},
-			[]*null.Int{&limit, &parent, &nestedLimit, &plain},
-		); err != nil {
+		if !uri.Valid {
+			ExceptionHandler(w, "missing uri query", nil, http.StatusBadRequest)
 			return
 		}
 
 		if !(plain.Int64 == 0 || plain.Int64 == 1) {
-			jsonError(w, "param 'plain' invalid : can only be 1 or 0", 400)
-		}
-
-		replyCounts, err := s.db.CountReply(uri, db.ModePublic, after)
-		if err != nil {
-			s.log.Printf("[ERROR]:%v", err)
-			http.Error(w, http.StatusText(500), 500)
+			ExceptionHandler(w, "param 'plain' invalid", nil, http.StatusBadRequest)
 			return
 		}
 
-		_, ok = replyCounts[parent]
+		replyCounts, err := s.db.CountReply(uri.String, db.ModePublic, after)
+		if err != nil {
+			ExceptionHandler(w, "reply count failed", err, http.StatusInternalServerError)
+			return
+		}
+
+		_, ok := replyCounts[parent]
 		if !ok {
 			replyCounts[parent] = 0
 		}
 
-		var rJSON FetchedComments
+		var rJSON struct {
+			TotalReplies  int64    `json:"total_replies"`
+			Replies       []reply  `json:"replies"`
+			ID            null.Int `json:"id"`
+			HiddenReplies int64    `json:"hidden_replies"`
+		}
 		rJSON.ID = parent
 		rJSON.TotalReplies = replyCounts[parent]
 
 		FetchComments := func(w http.ResponseWriter, parent, limit null.Int) ([]reply, error) {
-			comments, err := s.db.Fetch(uri, db.ModePublic, after, parent, "id", true, limit)
+			comments, err := s.db.Fetch(uri.String, db.ModePublic, after, parent, "id", true, limit)
 			if err != nil {
-				s.log.Printf("[ERROR]:%v", err)
-				http.Error(w, http.StatusText(500), 500)
 				return nil, err
 			}
 			replies := []reply{}
@@ -150,6 +176,7 @@ func (s *Server) handleFetch() http.HandlerFunc {
 
 		rJSON.Replies, err = FetchComments(w, parent, limit)
 		if err != nil {
+			ExceptionHandler(w, "fetch comment failed", err, http.StatusInternalServerError)
 			return
 		}
 
@@ -166,17 +193,22 @@ func (s *Server) handleFetch() http.HandlerFunc {
 				} else {
 					*rJSON.Replies[i].TotalReplies = count
 					rJSON.Replies[i].Replies, err = FetchComments(w, null.IntFrom(rJSON.Replies[i].ID), nestedLimit)
+					if err != nil {
+						ExceptionHandler(w, "fetch comment failed", err, http.StatusInternalServerError)
+						return
+					}
 				}
 				*rJSON.Replies[i].HiddenReplies = *rJSON.Replies[i].TotalReplies - int64(len(rJSON.Replies[i].Replies))
 			}
 		}
 
 		rJSON.HiddenReplies = replyCounts[parent] - int64(len(rJSON.Replies))
-		jSON(w, rJSON, 200)
+		jSON(w, rJSON, http.StatusOK)
 	}
 }
 
 func (s *Server) handleNew() http.HandlerFunc {
+	ExceptionHandler := getAPIExceptionHandler(s.log, "New")
 	var mode int64
 	var successCode int
 	if s.Conf.Moderation.Enable {
@@ -190,12 +222,13 @@ func (s *Server) handleNew() http.HandlerFunc {
 	var titleExtractor = service.NewTitleExtractor(http.Client{Timeout: time.Second * 5})
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		uris, ok := r.URL.Query()["uri"]
-		if !ok {
-			jsonError(w, "missing uri query", 400)
+		var uri null.String
+		_ = parseURLParam2type(r.URL.Query(), "uri", &uri)
+		if !uri.Valid {
+			ExceptionHandler(w, "missing uri query", nil, http.StatusBadRequest)
 			return
 		}
-		uri := uris[0]
+
 		var nc struct {
 			Text         string      `json:"text"`
 			Parent       null.Int    `json:"parent"`
@@ -207,8 +240,7 @@ func (s *Server) handleNew() http.HandlerFunc {
 		}
 		err := json.NewDecoder(http.MaxBytesReader(w, r.Body, int64(1<<14))).Decode(&nc)
 		if err != nil {
-			s.log.Printf("[ERROR] @api.new: decode input json failed - %v", err)
-			jsonError(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			ExceptionHandler(w, "decode input json failed", err, http.StatusBadRequest)
 			return
 		}
 		nc.Website = sanitizeUserInput(nc.Website)
@@ -216,40 +248,42 @@ func (s *Server) handleNew() http.HandlerFunc {
 		nc.Author = sanitizeUserInput(nc.Author)
 
 		var thread db.Thread
-		if ok, err := s.db.Contains(uri); err != nil {
+		if ok, err := s.db.Contains(uri.String); err != nil {
 			if ok {
-				thread, _ = s.db.GetThreadWithURI(uri)
+				thread, _ = s.db.GetThreadWithURI(uri.String)
 			} else {
 				if !nc.Title.Valid {
-					title, err := titleExtractor.Get(path.Join(s.Conf.Hosts[0], uri))
+					threadURL := path.Join(s.Conf.Hosts[0], uri.String)
+					title, err := titleExtractor.Get(threadURL)
 					if err != nil {
-						s.log.Printf("[ERROR] @api.new: get thread page(%v) failed - %v", uri, err)
-						jsonError(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+						ExceptionHandler(w, fmt.Sprintf("get thread page(%v) failed", threadURL),
+							err, http.StatusNotFound)
+						return
 					}
 					nc.Title.SetValid(title)
 				}
-				thread, err = s.db.NewThread(uri, nc.Title)
+				thread, err = s.db.NewThread(uri.String, nc.Title)
 				if err != nil {
-					s.log.Printf("[ERROR] @api.new: new thread(%v, %v) failed - %v", uri, nc.Title, err)
-					jsonError(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					ExceptionHandler(w, fmt.Sprintf("new thread(%v, %v) failed", uri.String, nc.Title),
+						err, http.StatusInternalServerError)
+					return
 				}
 			}
 		} else {
-			s.log.Printf("[ERROR] @api.new: check new uri(%s) failed - %v", uri, err)
-			jsonError(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			ExceptionHandler(w, fmt.Sprintf("check new uri(%s) failed", uri.String),
+				err, http.StatusInternalServerError)
+			return
 		}
 
 		c := db.NewComment(thread.ID, nc.Parent, mode, strings.Split(r.RemoteAddr, ":")[0], nc.Text,
 			nc.Author, nc.Email, nc.Website, nc.Notification)
 		if err := c.Verify(); err != nil {
-			s.log.Printf("[ERROR] @api.new: verify user input failed - %v", err)
-			jsonError(w, err.Error(), http.StatusBadRequest)
+			ExceptionHandler(w, "verify user input failed", err, http.StatusBadRequest)
 			return
 		}
-		c, err = s.db.Add(uri, c)
+		c, err = s.db.Add(uri.String, c)
 		if err != nil {
-			s.log.Printf("[ERROR] @api.new: can not add comment into database - %v", err)
-			jsonError(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+			ExceptionHandler(w, "can not add comment into database", err, http.StatusInternalServerError)
 			return
 		}
 
@@ -263,23 +297,24 @@ func (s *Server) handleNew() http.HandlerFunc {
 
 // example 'https://comments.example.com/id/4'
 func (s *Server) handleView() http.HandlerFunc {
+	ExceptionHandler := getAPIExceptionHandler(s.log, "View")
 	return func(w http.ResponseWriter, r *http.Request) {
-		var id = way.Param(r.Context(), "id")
-		intID, err := strconv.Atoi(id)
+		CommentID, err := strconv.Atoi(way.Param(r.Context(), "id"))
 		if err != nil {
-			jsonError(w, "Invalid ID", http.StatusBadRequest)
+			ExceptionHandler(w, "Invalid ID", err, http.StatusBadRequest)
 			return
 		}
-		c, err := s.db.Get(int64(intID))
+		c, err := s.db.Get(int64(CommentID))
 		if err != nil {
-			jsonError(w, fmt.Sprintf("Can't get corresponding comment %s", err), http.StatusBadRequest)
+			ExceptionHandler(w, "Can't get corresponding comment", err, http.StatusBadRequest)
 			return
 		}
 
 		var plain null.Int
-		err = parseURLParams2nullInts(w, r.URL.Query(), []string{"plain"}, []*null.Int{&plain})
+		err = parseURLParam2type(r.URL.Query(), "plain", &plain)
 		if err != nil {
-			jsonError(w, "param 'plain' invalid : can only be 1 or 0", http.StatusBadRequest)
+			ExceptionHandler(w, "param 'plain' invalid", err, http.StatusBadRequest)
+			return
 		}
 		if !plain.Valid || plain.Int64 != 1 {
 			c.Text = s.mdc.Run(c.Text)
@@ -292,6 +327,7 @@ func (s *Server) handleView() http.HandlerFunc {
 // {"text": "I see your point. However, I still disagree.", "website":\
 // "maxrant.important.com"} -H 'Content-Type: application/json' -b cookie.txt
 func (s *Server) handleEdit() http.HandlerFunc {
+	ExceptionHandler := getAPIExceptionHandler(s.log, "Edit")
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: first check whether user can edit this comment.
 		var nc struct {
@@ -301,29 +337,28 @@ func (s *Server) handleEdit() http.HandlerFunc {
 		}
 		err := json.NewDecoder(http.MaxBytesReader(w, r.Body, int64(1<<14))).Decode(&nc)
 		if err != nil {
-			s.log.Printf("[ERROR] @api.edit: decode input json failed - %v", err)
-			jsonError(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			ExceptionHandler(w, "decode input json failed", err, http.StatusBadRequest)
 			return
 		}
 		nc.Website = sanitizeUserInput(nc.Website)
 		nc.Author = sanitizeUserInput(nc.Author)
 		if len(nc.Text) < 3 || len(nc.Text) > 65535 {
-			s.log.Printf("[ERROR] @api.edit: input text size too long or too small")
-			jsonError(w, "input text size too long or too small", http.StatusBadRequest)
+			ExceptionHandler(w, "input text size too long or too small", nil, http.StatusBadRequest)
 			return
 		}
 
 		id, err := strconv.Atoi(way.Param(r.Context(), "id"))
 		c, err := s.db.Update(int64(id), nc.Text, nc.Author, nc.Website)
 		if err != nil {
-			jsonError(w, fmt.Sprintf("Can't update corresponding comment %s", err), http.StatusInternalServerError)
+			ExceptionHandler(w, "can't update corresponding comment", err, http.StatusInternalServerError)
 			return
 		}
 
 		var plain null.Int
-		err = parseURLParams2nullInts(w, r.URL.Query(), []string{"plain"}, []*null.Int{&plain})
+		err = parseURLParam2type(r.URL.Query(), "plain", &plain)
 		if err != nil {
-			jsonError(w, "param 'plain' invalid : can only be 1 or 0", http.StatusBadRequest)
+			ExceptionHandler(w, "param 'plain' invalid", err, http.StatusBadRequest)
+			return
 		}
 		if !plain.Valid || plain.Int64 != 1 {
 			c.Text = s.mdc.Run(c.Text)
