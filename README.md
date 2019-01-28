@@ -1,3 +1,6 @@
+**This is still a work in progress**
+If you want to develop `go-isso`, fell free to [contact](https://lowentropy.me/about/#about-me) me.
+
 # go-isso
 
 ![go-isso_s.png](https://i.loli.net/2018/10/16/5bc556ea1ae9a.png)
@@ -8,9 +11,15 @@ see more doc in <https://go-isso.lowentropy.me/>
 
 ## why another isso
 
-`isso` is so good, but it is hard to install and customize. what' more, `isso`'s frontend part use something no longer updated which means it is hard to develop.
+`isso` is good, but it's hard to be installed or customized.
+What' more, the frontend part of `isso` use library that is no longer updated.
 
 go-isso is distributed as a single binary, which means it can be installed and used easily.
+
+## Roadmap
+
+1. rewrite isso backend part <https://github.com/RayHY/go-isso/projects/1>
+2. Pray that someone will help me rewrite the front part of isso.
 
 ## Getting Started
 
@@ -20,11 +29,11 @@ go-isso is commenting server written in Go language.
 
 Make sure you have [go installed](https://golang.org/doc/install).
 
-### Installing
+### Developing
 
-Download the code: `go get -u github.com/jinxiapu/go-isso`
+Download the code: `go get -u github.com/RayHY/go-isso`
 
-then `cd /cmd/go-isso/`
+then `cd $GOPATH/src/github.com/RayHY/go-isso/cmd/go-isso/`
 
 run `go build`
 
@@ -37,15 +46,12 @@ is my first project in Go the code could no doubt use an increase in quality,
 but I'll be improving on it whenever I find the time. If you have any feedback
 feel free to [raise an issue](https://github.com/jinxiapu/go-isso/issues)/[submit a PR](https://github.com/jinxiapu/go-isso/pulls).
 
-## Built With
-
-* [Go Standard library](https://golang.org/pkg/)
-
-* [logrus](https://github.com/sirupsen/logrus)
 
 ## Contributing
 
-I know nothing about javascript. I need someone to 
+I know NOTHING about javascript. I need someone to HELP ME!!!
+
+If you want to develop `go-isso`, fell free to [contact](https://lowentropy.me/about/#about-me) me.
 
 ## Authors
 

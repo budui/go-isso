@@ -132,6 +132,8 @@ type commentAccessor interface {
 
 	// Add new comment to DB and return a complete Comment.
 	Add(uri string, c Comment) (Comment, error)
+	// Delete a comment.
+	Delete(id int64) (Comment, error)
 	// Update comment `id` with values from `data`
 	Update(id int64, text string, author, website null.String) (Comment, error)
 	// Search for comment `id` and return a mapping of `fields` and values.
@@ -140,6 +142,10 @@ type commentAccessor interface {
 	CountReply(uri string, mode int, after float64) (map[null.Int]int64, error)
 	// Return comments for `uri` with `mode`.
 	Fetch(uri string, mode int, after float64, parent null.Int, orderBy string, isASC bool, limit null.Int) ([]Comment, error)
+}
+
+func (db *database) Delete(id int64) (Comment, error) {
+	return Comment{}, nil
 }
 
 // CountReply return comment count for main thread and all reply threads for one url.

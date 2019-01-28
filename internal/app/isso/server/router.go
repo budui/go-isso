@@ -10,5 +10,5 @@ func (s *Server) registerRouters() {
 	s.Router.HandleFunc("GET", "/feed", s.handleStatusCode(501))
 	s.Router.HandleFunc("GET", "/id/:id", s.handleView())
 	s.Router.HandleFunc("PUT", "/id/:id", s.handleEdit())
-	s.Router.HandleFunc("DELETE", "/id/:id", s.handleStatusCode(501))
+	s.Router.HandleFunc("DELETE", "/id/:id", s.handleDelete())
 }

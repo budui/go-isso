@@ -367,6 +367,13 @@ func (s *Server) handleEdit() http.HandlerFunc {
 	}
 }
 
+func (s *Server) handleDelete() http.HandlerFunc {
+	// ExceptionHandler := getAPIExceptionHandler(s.log, "Delete")
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
 func (s *Server) handleHello() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		name := way.Param(r.Context(), "name")
