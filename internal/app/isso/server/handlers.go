@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/RayHY/go-isso/internal/app/isso/service"
+	"github.com/RayHY/go-isso/internal/pkg/conf"
 	"github.com/RayHY/go-isso/internal/pkg/dlog"
+	"github.com/gorilla/securecookie"
 	"github.com/microcosm-cc/bluemonday"
 	"html"
 	"io"
@@ -101,7 +103,7 @@ func (s *Server) handleStatusCode(code int) http.HandlerFunc {
 }
 
 // example 'https://comments.example.com/?uri=/thread/&limit=2&nested_limit=5'
-func (s *Server) handleFetch() http.HandlerFunc {
+func (s *Server) handleFetch(converterService *service.MDConverter, hashService *service.HashWorker) http.HandlerFunc {
 	ExceptionHandler := getAPIExceptionHandler(s.log, "Fetch")
 	type reply struct {
 		db.Comment
@@ -164,9 +166,9 @@ func (s *Server) handleFetch() http.HandlerFunc {
 			}
 			replies := []reply{}
 			for _, c := range comments {
-				c.Hash = s.hw.Hash(c.EmailOrIP())
+				c.Hash = hashService.Hash(c.EmailOrIP())
 				if !plain.Valid || plain.Int64 != 1 {
-					c.Text = s.mdc.Run(c.Text)
+					c.Text = converterService.Run(c.Text)
 				}
 				r := reply{c, nil, nil, []reply{}}
 				replies = append(replies, r)
@@ -207,7 +209,8 @@ func (s *Server) handleFetch() http.HandlerFunc {
 	}
 }
 
-func (s *Server) handleNew() http.HandlerFunc {
+func (s *Server) handleNew(converterService *service.MDConverter, hashService *service.HashWorker,
+	cookieService *securecookie.SecureCookie) http.HandlerFunc {
 	ExceptionHandler := getAPIExceptionHandler(s.log, "New")
 	var mode int64
 	var successCode int
@@ -248,12 +251,12 @@ func (s *Server) handleNew() http.HandlerFunc {
 		nc.Author = sanitizeUserInput(nc.Author)
 
 		var thread db.Thread
-		if ok, err := s.db.Contains(uri.String); err != nil {
+		if ok, err := s.db.Contains(uri.String); err == nil {
 			if ok {
 				thread, _ = s.db.GetThreadWithURI(uri.String)
 			} else {
 				if !nc.Title.Valid {
-					threadURL := path.Join(s.Conf.Hosts[0], uri.String)
+					threadURL := s.Conf.Hosts[0][:9] + path.Join(s.Conf.Hosts[0][9:], uri.String)
 					title, err := titleExtractor.Get(threadURL)
 					if err != nil {
 						ExceptionHandler(w, fmt.Sprintf("get thread page(%v) failed", threadURL),
@@ -283,20 +286,34 @@ func (s *Server) handleNew() http.HandlerFunc {
 		}
 		c, err = s.db.Add(uri.String, c)
 		if err != nil {
-			ExceptionHandler(w, "can not add comment into database", err, http.StatusInternalServerError)
+			if _, ok := err.(*db.AcceptableError); ok {
+				ExceptionHandler(w, err.Error(), nil, http.StatusBadRequest)
+			} else {
+				ExceptionHandler(w, "can not add comment into database", err, http.StatusInternalServerError)
+			}
 			return
 		}
 
-		// TODO: session and cookies for editing comments.
+		cookieName := fmt.Sprintf("%v", c.ID)
+		if encoded, err := cookieService.Encode(cookieName, c.CookieValue()); err == nil {
+			cookie := &http.Cookie{
+				Name:   cookieName,
+				Value:  encoded,
+				Path:   "/",
+				MaxAge: conf.DurationSeconds(s.Conf.Guard.EditMaxAge),
+			}
+			http.SetCookie(w, cookie)
+		}
 
-		c.Hash = s.hw.Hash(c.EmailOrIP())
-		c.Text = s.mdc.Run(c.Text)
+		c.Hash = hashService.Hash(c.EmailOrIP())
+		c.Text = converterService.Run(c.Text)
+
 		jSON(w, c, successCode)
 	}
 }
 
 // example 'https://comments.example.com/id/4'
-func (s *Server) handleView() http.HandlerFunc {
+func (s *Server) handleView(converterService *service.MDConverter, hashService *service.HashWorker) http.HandlerFunc {
 	ExceptionHandler := getAPIExceptionHandler(s.log, "View")
 	return func(w http.ResponseWriter, r *http.Request) {
 		CommentID, err := strconv.Atoi(way.Param(r.Context(), "id"))
@@ -317,8 +334,9 @@ func (s *Server) handleView() http.HandlerFunc {
 			return
 		}
 		if !plain.Valid || plain.Int64 != 1 {
-			c.Text = s.mdc.Run(c.Text)
+			c.Text = converterService.Run(c.Text)
 		}
+		c.Hash = hashService.Hash(c.Hash)
 		jSON(w, c, 200)
 	}
 }
@@ -326,7 +344,8 @@ func (s *Server) handleView() http.HandlerFunc {
 // curl -X PUT 'https://comments.example.com/id/23' -d \
 // {"text": "I see your point. However, I still disagree.", "website":\
 // "maxrant.important.com"} -H 'Content-Type: application/json' -b cookie.txt
-func (s *Server) handleEdit() http.HandlerFunc {
+func (s *Server) handleEdit(converterService *service.MDConverter, hashService *service.HashWorker,
+	cookieService *securecookie.SecureCookie) http.HandlerFunc {
 	ExceptionHandler := getAPIExceptionHandler(s.log, "Edit")
 	return func(w http.ResponseWriter, r *http.Request) {
 		// TODO: first check whether user can edit this comment.
@@ -361,8 +380,9 @@ func (s *Server) handleEdit() http.HandlerFunc {
 			return
 		}
 		if !plain.Valid || plain.Int64 != 1 {
-			c.Text = s.mdc.Run(c.Text)
+			c.Text = converterService.Run(c.Text)
 		}
+		c.Hash = hashService.Hash(c.Hash)
 		jSON(w, c, 200)
 	}
 }

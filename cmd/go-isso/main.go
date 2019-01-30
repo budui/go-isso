@@ -20,13 +20,13 @@ func main() {
 
 	config, err := conf.Load(*configPath)
 	if err != nil {
-		log.Fatalf("[FATA] Load Config Failed %v", err)
+		log.Fatalf("[FATA] Load Config Failed : %v", err)
 	}
 
 	isso, err := server.NewServer(config, *inDebugMode)
 	defer isso.Close()
 	if err != nil {
-		log.Fatalf("[FATA] Failed to Setup Application %v", err)
+		log.Fatalf("[FATA] Failed to Setup Application : %v", err)
 	}
 
 	if err := isso.Run(); err != nil {

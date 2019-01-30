@@ -48,7 +48,7 @@ func NewTitleExtractor(client http.Client) *TitleExtractor {
 func (t *TitleExtractor) Get(url string) (string, error) {
 	resp, err := t.client.Get(url)
 	if err != nil {
-		return "", fmt.Errorf("failed to load page %s", url)
+		return "", fmt.Errorf("failed to load page %s (%v)", url, err)
 	}
 	defer resp.Body.Close() //nolint
 	if resp.StatusCode != 200 {

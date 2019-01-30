@@ -1,4 +1,4 @@
-GET http://localhost:8080/?uri=/about/
+GET http://localhost:8081/?uri=/about/&plain=1
 Accept: */*
 Cache-Control: no-cache
 

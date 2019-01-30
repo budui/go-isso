@@ -1,9 +1,11 @@
 package conf
 
 import (
+	"errors"
 	"github.com/BurntSushi/toml"
 	"log"
 	"path/filepath"
+	"time"
 )
 
 // Generated with "https://toml-to-json.matiaskorhonen.fi/" & "https://app.quicktype.io/"
@@ -105,5 +107,17 @@ func Load(confPath string) (Config, error) {
 	if _, err := toml.DecodeFile(confPath, &c); err != nil {
 		return Config{}, err
 	}
+
+	if _, err := time.ParseDuration(c.Guard.EditMaxAge); err != nil {
+		return Config{}, errors.New("Guard.EditMaxAge can't be parsed as Duration")
+	}
+	if _, err := time.ParseDuration(c.Moderation.PurgeAfter); err != nil {
+		return Config{}, errors.New("Moderation.PurgeAfter can't be parsed as Duration")
+	}
 	return c, nil
+}
+
+func DurationSeconds(duration string) int {
+	Duration, _ := time.ParseDuration(duration)
+	return int(Duration.Seconds())
 }

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"crypto/sha1"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -124,6 +125,13 @@ func (c *Comment) Verify() error {
 	}
 
 	return nil
+}
+
+// CookieValue return the value that can be used as edit cookie value.
+func (c *Comment) CookieValue() map[int64][20]byte {
+	return map[int64][20]byte{
+		c.ID: sha1.Sum([]byte(c.Text)),
+	}
 }
 
 // commentAccessor defines all usual access ops avail for comment.
@@ -263,9 +271,21 @@ func (db *database) Add(uri string, c Comment) (Comment, error) {
 	if c.Parent.Valid {
 		parent, err := db.Get(c.Parent.Int64)
 		if err != nil {
-			return Comment{}, fmt.Errorf("db.Add: %v", err)
+			if err == sql.ErrNoRows {
+				return Comment{}, newError("can't find specify parent")
+			}
+			return Comment{}, fmt.Errorf("db.Add: get parent failed. - %v", err)
 		}
-		c.Parent = parent.Parent
+		parentThread, err := db.GetThreadWithID(parent.tid)
+		if err != nil {
+			return Comment{}, fmt.Errorf("db.Add: get parent's thread failed. - %v", err)
+		}
+		if parentThread.URI != uri {
+			return Comment{}, newError("parent's thread and comment's thread are different")
+		}
+		if parent.Parent.Valid {
+			c.Parent = parent.Parent
+		}
 	}
 
 	c.voters = service.GenBloomfilterfunc(c.remoteAddr)
@@ -306,6 +326,9 @@ func (db *database) Get(id int64) (Comment, error) {
 		&c.Likes, &c.Dislikes, &c.voters, &c.notification,
 	)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return Comment{}, sql.ErrNoRows
+		}
 		return Comment{}, fmt.Errorf("db.Get: %v", err)
 	}
 	return c, nil

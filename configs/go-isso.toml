@@ -37,12 +37,24 @@ Password = "please_choose_a_strong_password"
 
 [Moderation]
 Enable = true
-PurgeAfter = "30d"
+# this duration will be parsed by https://golang.org/pkg/time/#ParseDuration
+# A duration string is a possibly signed sequence of decimal numbers,
+# each with optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m".
+# Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+# which is differ from original isso.(DO NOT SUPPORT days, years and weeks)
+PurgeAfter = "720h" # 30*24
 
 [Guard]
 Enable = true
 # API limit
 RateLimit = 2
+# time range that allows users to edit/remove their own comments.
+#
+# this duration will be parsed by https://golang.org/pkg/time/#ParseDuration
+# A duration string is a possibly signed sequence of decimal numbers,
+# each with optional fraction and a unit suffix, such as "300ms", "-1.5h" or "2h45m".
+# Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+# which is differ from original isso.(DO NOT SUPPORT days, years and weeks)
 EditMaxAge = "15m"
 # database limit
 DirectReply = 3

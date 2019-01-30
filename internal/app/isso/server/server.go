@@ -1,11 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
-	"github.com/RayHY/go-isso/internal/app/isso/service"
 	"github.com/RayHY/go-isso/internal/app/isso/way"
 	"github.com/RayHY/go-isso/internal/pkg/conf"
 	"github.com/RayHY/go-isso/internal/pkg/db"
@@ -19,8 +19,6 @@ type Server struct {
 	db     db.Accessor
 	Conf   conf.Config
 	log    *log.Logger
-	hw     *service.HashWorker
-	mdc    *service.MDConverter
 }
 
 // NewServer make a new Server
@@ -29,26 +27,23 @@ func NewServer(config conf.Config, inDebugMode bool) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	hw, err := service.NewHashWorker(config.Hash.Algorithm, config.Hash.Salt)
-	if err != nil {
-		return nil, err
-	}
-	mdc := service.NewMDConverter(config.Markup)
 
 	s := &Server{
 		Router: way.NewRouter(),
 		Conf:   config,
 		log:    log.New(os.Stdout, "", log.LstdFlags, inDebugMode),
 		db:     accessor,
-		hw:     hw,
-		mdc:    mdc,
 	}
 
 	s.Router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusText(404), 404)
 	})
 
-	s.registerRouters()
+	err = s.registerRouters()
+
+	if err != nil {
+		return nil, fmt.Errorf("register routers failed - %v", err)
+	}
 
 	return s, nil
 }

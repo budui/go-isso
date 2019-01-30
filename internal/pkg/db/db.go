@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 
 	"github.com/RayHY/go-isso/internal/pkg/conf"
@@ -44,7 +45,7 @@ var (
 		value VARCHAR
 	);
 	`
-	
+
 	createAutomateDorphanRemoval = `
 	CREATE TRIGGER IF NOT EXISTS remove_stale_threads
     AFTER DELETE ON comments
@@ -63,12 +64,26 @@ var (
 type Accessor interface {
 	commentAccessor
 	threadsAccessor
+	preferenceAccessor
 	Close() error
 }
 
 type database struct {
 	*sql.DB
 	guard conf.Guard
+}
+
+// AcceptableError used to type
+type AcceptableError struct {
+	originErr error
+}
+
+func (e *AcceptableError) Error() string {
+	return e.originErr.Error()
+}
+
+func newError(errString string) error {
+	return &AcceptableError{originErr: errors.New(errString)}
 }
 
 // NewAccessor generate an new DB worker
@@ -97,9 +112,12 @@ func NewAccessor(path string, guard conf.Guard) (Accessor, error) {
 	}
 	// Add field `notification` when use old isso database.
 	// failed when exist `notification`.
-	db.Exec(convertOldIssoDatabase)
+	// so just IGNORE error.
+	_, _ = db.Exec(convertOldIssoDatabase)
 
-	return &database{db, guard}, nil
+	dbw := &database{db, guard}
+	_ = initPreference(dbw)
+	return dbw, nil
 }
 
 func (db *database) Close() error {

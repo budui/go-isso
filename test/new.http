@@ -1,8 +1,9 @@
-POST http://localhost:8080/new?uri=/about/
+POST http://localhost:8081/new?uri=/about/
 Accept: */*
+content-type: application/json
 Cache-Control: no-cache
 
-{"text": "Stop saying that! *isso*!", "author": "Max Rant", "email": "rant@example.com", "parent": 15}
+{"text": "Stop saying that! *isso*!", "author": "Max Rant", "email": "rant@example.com", "parent": 3}
 
 ###
 

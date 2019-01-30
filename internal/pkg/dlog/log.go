@@ -49,7 +49,7 @@ func New(out io.Writer, prefix string, flag int, debug bool) *Logger {
 		// if in debug mode while not set `Llongfile` or `Lshortfile`.
 		// Add `Llongfile` Flag.
 		if flag&(Lshortfile|Llongfile) == 0 {
-			flag |= log.Llongfile
+			flag |= log.Lshortfile
 		}
 	}
 	return &Logger{log.New(out, prefix, flag), debug}
