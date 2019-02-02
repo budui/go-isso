@@ -14,7 +14,26 @@ see more doc in <https://go-isso.lowentropy.me/>
 `isso` is good, but it's hard to be installed or customized.
 What' more, the frontend part of `isso` use library that is no longer updated.
 
-go-isso is distributed as a single binary, which means it can be installed and used easily.
+`go-isso` is different from `isso`:
+
+* Written in Go (Golang)
+* Works with Sqlite3 but easy to add other database support.
+* Doesn't use any ORM
+* Doesn't use any complicated framework
+* Use only modern vanilla Javascript (ES6 and Fetch API)
+* Single binary compiled statically without dependency
+
+### Why choose Golang as a programming language?
+
+Go is probably the best choice for self-hosted software:
+
+* Go is a simple programming language.
+* Running code concurrently is part of the language.
+* It’s faster than a scripting language like PHP or Python.
+* The final application is a binary compiled statically without any dependency.
+* You just need to drop the executable on your server to deploy the application.
+* You don’t have to worry about what version of PHP/Python is installed on your machine.
+* Packaging the software using RPM/Debian/Docker is straightforward.
 
 ## Roadmap
 
