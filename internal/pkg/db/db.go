@@ -3,70 +3,12 @@ package db
 import (
 	"database/sql"
 	"errors"
-	"log"
+	"fmt"
+	"strings"
 
 	"github.com/RayHY/go-isso/internal/pkg/conf"
-
-	// can be easily replaced by mysql etc.
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/RayHY/go-isso/internal/pkg/db/sqlite3"
 )
-
-var (
-	createComments = `
-	CREATE TABLE IF NOT EXISTS comments (
-		tid REFERENCES threads(id), 
-		id INTEGER PRIMARY KEY, 
-		parent INTEGER,
-		created FLOAT NOT NULL,
-		modified FLOAT,
-		mode INTEGER,
-		remote_addr VARCHAR,
-		text VARCHAR,
-		author VARCHAR,
-		email VARCHAR,
-		website VARCHAR,
-		likes INTEGER DEFAULT 0,
-		dislikes INTEGER DEFAULT 0,
-		voters BLOB NOT NULL,
-		notification INTEGER DEFAULT 0
-	);
-	`
-	createThreads = `
-	CREATE TABLE IF NOT EXISTS threads (
-		id INTEGER PRIMARY KEY,
-		uri VARCHAR(256) UNIQUE,
-		title VARCHAR(256)
-	);
-	`
-
-	createPreferences = `
-	CREATE TABLE IF NOT EXISTS preferences (
-		key VARCHAR PRIMARY KEY, 
-		value VARCHAR
-	);
-	`
-
-	createAutomateDorphanRemoval = `
-	CREATE TRIGGER IF NOT EXISTS remove_stale_threads
-    AFTER DELETE ON comments
-    BEGIN
-    	DELETE FROM threads WHERE id NOT IN (SELECT tid FROM comments);
-    END
-	`
-
-	// MAYBE replace it with something like pragma_table_info('comments')?
-	convertOldIssoDatabase = `
-		ALTER TABLE comments ADD COLUMN notification INTEGER DEFAULT 0;
-	`
-)
-
-// Accessor defines all usual access ops avail.
-type Accessor interface {
-	commentAccessor
-	threadsAccessor
-	preferenceAccessor
-	Close() error
-}
 
 type database struct {
 	*sql.DB
@@ -87,33 +29,20 @@ func newError(errString string) error {
 }
 
 // NewAccessor generate an new DB worker
-// 1. Open database.
-// 2. Ping database.
-// 3. Create Table comment, thread, preference if they do not exist.
-// 4. Add field `notification` when use old isso database.
-func NewAccessor(path string, guard conf.Guard) (Accessor, error) {
-	db, err := sql.Open("sqlite3", path)
+func NewAccessor(dbConfig conf.Database, guard conf.Guard) (Accessor, error) {
+	var db *sql.DB
+	var err error
+
+	switch strings.ToLower(dbConfig.Dialect) {
+	case "sqlite3":
+		db, err = sqlite3.CreateDatabase(dbConfig.Sqlite3)
+	default:
+		err = fmt.Errorf("unsupported dialect %v", dbConfig.Dialect)
+		db = nil
+	}
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("NewAccessor failed. [%s]", err.Error())
 	}
-
-	if err = db.Ping(); err != nil {
-		return nil, err
-	}
-
-	// if need to add another database support, just use another sql slice.
-	Sqlite3createSQL := []string{createComments, createPreferences, createThreads, createAutomateDorphanRemoval}
-
-	for _, InitSQL := range Sqlite3createSQL {
-		_, err := db.Exec(InitSQL)
-		if err != nil {
-			return nil, err
-		}
-	}
-	// Add field `notification` when use old isso database.
-	// failed when exist `notification`.
-	// so just IGNORE error.
-	_, _ = db.Exec(convertOldIssoDatabase)
 
 	dbw := &database{db, guard}
 	_ = initPreference(dbw)

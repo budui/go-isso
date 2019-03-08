@@ -7,12 +7,6 @@ import (
 	"gopkg.in/guregu/null.v3"
 )
 
-// preferenceAccessor defines all usual access ops avail for comment.
-type preferenceAccessor interface {
-	GetPreference(key string) (null.String, error)
-	SetPreference(key, value string) error
-}
-
 func initPreference(db *database) error {
 	if v, err := db.GetPreference("session-key"); err != nil || v.Valid {
 		return err

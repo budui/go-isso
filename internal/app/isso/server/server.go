@@ -23,7 +23,7 @@ type Server struct {
 
 // NewServer make a new Server
 func NewServer(config conf.Config, inDebugMode bool) (*Server, error) {
-	accessor, err := db.NewAccessor(config.Database.Sqlite.Path, config.Guard)
+	accessor, err := db.NewAccessor(config.Database, config.Guard)
 	if err != nil {
 		return nil, err
 	}

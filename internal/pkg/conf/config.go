@@ -54,11 +54,12 @@ type Admin struct {
 
 // Database contains all supported Database type
 type Database struct {
-	Sqlite Sqlite
+	Dialect string
+	Sqlite3  Sqlite3
 }
 
-// Sqlite contains config for sqlite3 database
-type Sqlite struct {
+// Sqlite3 contains config for sqlite3 database
+type Sqlite3 struct {
 	Path string
 }
 

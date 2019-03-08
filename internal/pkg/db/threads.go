@@ -14,13 +14,6 @@ type Thread struct {
 	Title null.String
 }
 
-// threadsAccessor defines all usual access ops avail for threads
-type threadsAccessor interface {
-	Contains(uri string) (bool, error)
-	GetThreadWithID(ID int64) (Thread, error)
-	GetThreadWithURI(uri string) (Thread, error)
-	NewThread(uri string, title null.String) (Thread, error)
-}
 
 func (db *database) NewThread(uri string, title null.String) (Thread, error) {
 	stmt, err := db.Prepare(`INSERT INTO threads (uri, title) VALUES (?, ?)`)

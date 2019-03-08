@@ -28,7 +28,9 @@ From = '"Foo Bar" <isso@example.tld>'
 Enable = false
 UserID = 9090900
 
-[Database.Sqlite]
+[Database]
+Dialect = "sqlite3"
+[Database.Sqlite3]
     Path = "./comments.db"
 
 [Admin]
