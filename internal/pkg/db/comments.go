@@ -134,7 +134,6 @@ func (c *Comment) CookieValue() map[int64][20]byte {
 	}
 }
 
-
 func (db *database) Delete(id int64) (Comment, error) {
 	return Comment{}, nil
 }

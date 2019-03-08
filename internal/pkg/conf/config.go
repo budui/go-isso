@@ -1,12 +1,12 @@
 package conf
 
 import (
+	"errors"
+	"github.com/BurntSushi/toml"
 	"log"
 	"path/filepath"
-	"time"
-	"errors"
 	"strings"
-	"github.com/BurntSushi/toml"
+	"time"
 )
 
 // DurationSecond represent a `time.Duration` with Seconds
@@ -55,7 +55,7 @@ type Admin struct {
 // Database contains all supported Database type
 type Database struct {
 	Dialect string
-	Sqlite3  Sqlite3
+	Sqlite3 Sqlite3
 }
 
 // Sqlite3 contains config for sqlite3 database
@@ -74,7 +74,7 @@ type Guard struct {
 	EditMaxAge    DurationSecond
 }
 
-// Hash save the config for how to hash 
+// Hash save the config for how to hash
 type Hash struct {
 	Salt      string
 	Algorithm string

@@ -45,10 +45,8 @@ var sqlite3CreateSQLs = []string{
 	`,
 }
 
-
 // MAYBE replace it with something like pragma_table_info('comments')?
-var	convertOldIssoDatabase = `ALTER TABLE comments ADD COLUMN notification INTEGER DEFAULT 0;`
-
+var convertOldIssoDatabase = `ALTER TABLE comments ADD COLUMN notification INTEGER DEFAULT 0;`
 
 func CreateDatabase(sqliteConf conf.Sqlite3) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", sqliteConf.Path)

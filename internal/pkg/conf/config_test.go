@@ -10,8 +10,8 @@ func TestDurationSecond_UnmarshalText(t *testing.T) {
 		wantErr bool
 	}{
 		{"c1", []byte("1m40s"), DurationSecond(100), false},
-		{"c2", []byte("20s5h"), DurationSecond(5*3600+20), false},
-		{"c3", []byte("168h20s"), DurationSecond(7*24*3600+20), false},
+		{"c2", []byte("20s5h"), DurationSecond(5*3600 + 20), false},
+		{"c3", []byte("168h20s"), DurationSecond(7*24*3600 + 20), false},
 		{"w1", []byte("168h20 s"), DurationSecond(0), true},
 		{"NotSupportedDuration0", []byte("1m40d"), DurationSecond(0), true},
 		{"NotSupportedDuration1", []byte("3d"), DurationSecond(0), true},

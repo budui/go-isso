@@ -14,7 +14,6 @@ type Thread struct {
 	Title null.String
 }
 
-
 func (db *database) NewThread(uri string, title null.String) (Thread, error) {
 	stmt, err := db.Prepare(`INSERT INTO threads (uri, title) VALUES (?, ?)`)
 	if err != nil {

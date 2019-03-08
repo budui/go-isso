@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"github.com/RayHY/go-isso/internal/app/isso/service"
 	"github.com/gorilla/securecookie"
 )
@@ -18,7 +19,7 @@ func (s *Server) registerRouters() error {
 
 	cookieKey, err := s.db.GetPreference("session-key")
 	if err != nil {
-		return errors.New("get session-key failed")
+		return fmt.Errorf("get session-key failed[%s]", err.Error())
 	}
 	secureCookieService := securecookie.New([]byte(cookieKey.String), nil)
 
