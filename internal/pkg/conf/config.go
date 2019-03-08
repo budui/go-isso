@@ -1,16 +1,38 @@
 package conf
 
 import (
-	"errors"
-	"github.com/BurntSushi/toml"
 	"log"
 	"path/filepath"
 	"time"
+	"errors"
+	"strings"
+	"github.com/BurntSushi/toml"
 )
+
+// DurationSecond represent a `time.Duration` with Seconds
+type DurationSecond int
+
+var errNotSupportedDuration = errors.New("go-isso DO NOT support duration unit y w d")
+
+// UnmarshalText unmarshl the string to `time.Duration`
+func (ds *DurationSecond) UnmarshalText(text []byte) error {
+	durText := string(text)
+	if strings.ContainsAny(durText, "ywd") {
+		return errNotSupportedDuration
+	}
+
+	dur, err := time.ParseDuration(durText)
+	if err != nil {
+		return err
+	}
+
+	*ds = DurationSecond(dur.Seconds())
+	return nil
+}
 
 // Generated with "https://toml-to-json.matiaskorhonen.fi/" & "https://app.quicktype.io/"
 
-// Configure save all config for this project
+// Config save all config for this project
 type Config struct {
 	Name       string
 	Hosts      []string
@@ -24,19 +46,23 @@ type Config struct {
 	Hash       Hash
 }
 
+// Admin control admin login stuff
 type Admin struct {
 	Enable   bool
 	Password string
 }
 
+// Database contains all supported Database type
 type Database struct {
 	Sqlite Sqlite
 }
 
+// Sqlite contains config for sqlite3 database
 type Sqlite struct {
 	Path string
 }
 
+// Guard save the config for go-isso's guarder
 type Guard struct {
 	Enable        bool
 	RateLimit     int64
@@ -44,9 +70,10 @@ type Guard struct {
 	ReplyToSelf   bool
 	RequireAuthor bool
 	RequireEmail  bool
-	EditMaxAge    string
+	EditMaxAge    DurationSecond
 }
 
+// Hash save the config for how to hash 
 type Hash struct {
 	Salt      string
 	Algorithm string
@@ -61,7 +88,7 @@ type Markup struct {
 
 type Moderation struct {
 	Enable     bool
-	PurgeAfter string
+	PurgeAfter DurationSecond
 }
 
 type Notify struct {
@@ -107,17 +134,5 @@ func Load(confPath string) (Config, error) {
 	if _, err := toml.DecodeFile(confPath, &c); err != nil {
 		return Config{}, err
 	}
-
-	if _, err := time.ParseDuration(c.Guard.EditMaxAge); err != nil {
-		return Config{}, errors.New("Guard.EditMaxAge can't be parsed as Duration")
-	}
-	if _, err := time.ParseDuration(c.Moderation.PurgeAfter); err != nil {
-		return Config{}, errors.New("Moderation.PurgeAfter can't be parsed as Duration")
-	}
 	return c, nil
-}
-
-func DurationSeconds(duration string) int {
-	Duration, _ := time.ParseDuration(duration)
-	return int(Duration.Seconds())
 }

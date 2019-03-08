@@ -3,7 +3,6 @@ package server
 import (
 	"errors"
 	"github.com/RayHY/go-isso/internal/app/isso/service"
-	"github.com/RayHY/go-isso/internal/pkg/conf"
 	"github.com/gorilla/securecookie"
 )
 
@@ -23,7 +22,7 @@ func (s *Server) registerRouters() error {
 	}
 	secureCookieService := securecookie.New([]byte(cookieKey.String), nil)
 
-	secureCookieService.MaxAge(conf.DurationSeconds(s.Conf.Guard.EditMaxAge))
+	secureCookieService.MaxAge(int(s.Conf.Guard.EditMaxAge))
 
 	s.Router.NotFound = s.handleStatusCode(404)
 	s.Router.HandleFunc("GET", "/hello/:name", s.handleHello())

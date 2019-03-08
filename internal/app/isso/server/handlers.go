@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/RayHY/go-isso/internal/app/isso/service"
-	"github.com/RayHY/go-isso/internal/pkg/conf"
 	"github.com/RayHY/go-isso/internal/pkg/dlog"
 	"github.com/gorilla/securecookie"
 	"github.com/microcosm-cc/bluemonday"
@@ -300,7 +299,7 @@ func (s *Server) handleNew(converterService *service.MDConverter, hashService *s
 				Name:   cookieName,
 				Value:  encoded,
 				Path:   "/",
-				MaxAge: conf.DurationSeconds(s.Conf.Guard.EditMaxAge),
+				MaxAge: int(s.Conf.Guard.EditMaxAge),
 			}
 			http.SetCookie(w, cookie)
 		}
