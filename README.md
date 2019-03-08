@@ -7,7 +7,7 @@ If you want to develop `go-isso`, fell free to [contact](https://lowentropy.me/a
 
 a commenting server similar to Disqus, while keeping completely API compatible with [isso](https://posativ.org/isso/)
 
-see more doc in <https://go-isso.lowentropy.me/>
+see more doc in <https://lowentropy.me/go-isso/>
 
 ## why another isso
 
@@ -65,7 +65,6 @@ is my first project in Go the code could no doubt use an increase in quality,
 but I'll be improving on it whenever I find the time. If you have any feedback
 feel free to [raise an issue](https://github.com/jinxiapu/go-isso/issues)/[submit a PR](https://github.com/jinxiapu/go-isso/pulls).
 
-
 ## Contributing
 
 I know NOTHING about javascript. I need someone to HELP ME!!!
@@ -75,6 +74,10 @@ If you want to develop `go-isso`, fell free to [contact](https://lowentropy.me/a
 ## Authors
 
 * **Ray Wong** - *Initial work* - [LowEntropy](https://lowentropy.me)
+
+## Thanks
+
+[isso](https://posativ.org/isso/) & [isso's contributors](https://github.com/posativ/isso/graphs/contributors).
 
 ## License
 
