@@ -52,7 +52,7 @@ func (db *database) GetThreadWithURI(uri string) (Thread, error) {
 	return th, nil
 }
 
-func (db *database) Contains(uri string) (bool, error) {
+func (db *database) Contain(uri string) (bool, error) {
 	var title string
 
 	err := db.QueryRow(`SELECT title FROM threads WHERE uri=?`, uri).Scan(

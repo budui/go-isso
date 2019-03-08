@@ -250,7 +250,7 @@ func (s *Server) handleNew(converterService *service.MDConverter, hashService *s
 		nc.Author = sanitizeUserInput(nc.Author)
 
 		var thread db.Thread
-		if ok, err := s.db.Contains(uri.String); err == nil {
+		if ok, err := s.db.Contain(uri.String); err == nil {
 			if ok {
 				thread, _ = s.db.GetThreadWithURI(uri.String)
 			} else {

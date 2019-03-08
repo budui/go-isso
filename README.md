@@ -1,4 +1,7 @@
 **This is still a work in progress**
+
+New develop take place in branch `construction`.
+
 If you want to develop `go-isso`, fell free to [contact](https://lowentropy.me/about/#about-me) me.
 
 # go-isso
@@ -37,7 +40,7 @@ Go is probably the best choice for self-hosted software:
 
 ## Roadmap
 
-1. rewrite isso backend part <https://github.com/RayHY/go-isso/projects/1>
+1. rewrite isso backend part <https://github.com/RayHY/go-isso/blob/master/roadmap.md>
 2. Pray that someone will help me rewrite the front part of isso.
 
 ## Getting Started

@@ -36,7 +36,7 @@ type preferenceAccessor interface {
 
 // threadsAccessor defines all usual access ops avail for threads
 type threadsAccessor interface {
-	Contains(uri string) (bool, error)
+	Contain(uri string) (bool, error)
 	GetThreadWithID(ID int64) (Thread, error)
 	GetThreadWithURI(uri string) (Thread, error)
 	NewThread(uri string, title null.String) (Thread, error)
