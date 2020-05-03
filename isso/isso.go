@@ -1,54 +1,119 @@
 package isso
 
 import (
+	"crypto/sha1"
+	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
+	"strconv"
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/budui/go-isso/config"
-	"github.com/budui/go-isso/pkg/logger"
+	"github.com/gorilla/securecookie"
+	"github.com/kr/pretty"
+	"wrong.wang/x/go-isso/config"
+	"wrong.wang/x/go-isso/isso/model"
+	"wrong.wang/x/go-isso/isso/request"
+	"wrong.wang/x/go-isso/isso/response"
+	"wrong.wang/x/go-isso/isso/response/json"
+	"wrong.wang/x/go-isso/logger"
 )
 
-// Worker is the main struct for go-isso,
-// store all important struct like config, database,etc.
-type Worker struct {
-	logger *logger.Logger
-	config *config.Config
-	router *mux.Router
-	server *http.Server
+// ISSO do the main logical staff
+type ISSO struct {
+	storage Storage
+	config  config.Config
+	guard   guard
 }
 
-// NewWorker return a Worker. if any fields initiazed failed, return error.
-func NewWorker(conf *config.Config) (*Worker, error) {
-	log := logger.New(os.Stderr, "", logger.LstdFlags, conf.Debug)
-	log.Debug("isso.Logger prepare ok.")
+type guard struct {
+	v  *Validator
+	sc *securecookie.SecureCookie
+}
 
-	r := mux.NewRouter()
-	server := &http.Server{
-		// TODO: remove this fallback string.
-		Addr:         conf.Server.Listen,
-		WriteTimeout: time.Second * 3,
-		ReadTimeout:  time.Second * 3,
-		IdleTimeout:  time.Second * 3,
-		Handler:      r,
+// CreateComment create a new comment
+func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
+	comment, err := decodeAcceptComment(req.Body)
+	if err != nil {
+		json.BadRequest(rb, err)
+		return
 	}
-	return &Worker{logger: log, config: conf, router: r, server: server}, nil
+	comment.URI = mux.Vars(req)["uri"]
+	comment.RemoteAddr = request.FindClientIP(req)
+
+	if err := isso.guard.v.Validate(comment); err != nil {
+		json.BadRequest(rb, err)
+		return
+	}
+
+	var thread model.Thread
+	if isso.storage.ContainsThread(comment.URI) {
+		thread, err = isso.storage.GetThreadByURI(comment.URI)
+		if err != nil {
+			json.ServerError(rb, fmt.Errorf("can not get thread %w", err))
+			return
+		}
+	} else {
+		thread, err = isso.storage.NewThread(comment.URI, comment.Title, req.Host)
+		if err != nil {
+			json.ServerError(rb, fmt.Errorf("can not create new thread %w", err))
+			return
+		}
+	}
+
+	comment.ThreadID = thread.ID
+	if isso.config.Moderation.Enable {
+		if isso.config.Moderation.ApproveAcquaintance && isso.storage.IsApprovedAuthor(comment.Email) {
+			comment.Mode = 1
+		} else {
+			comment.Mode = 2
+		}
+	} else {
+		comment.Mode = 1
+	}
+
+	c, err := isso.storage.NewComment(comment)
+	if err != nil {
+		json.ServerError(rb, fmt.Errorf("can not create new comment %w", err))
+		return
+	}
+
+	logger.Debug(fmt.Sprintf("new comment: %# v", pretty.Formatter(comment)))
+
+	if encoded, err := isso.guard.sc.Encode(fmt.Sprintf("%v", c.ID),
+		map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
+		cookie := &http.Cookie{
+			Name:   fmt.Sprintf("%v", c.ID),
+			Value:  encoded,
+			Path:   "/",
+			MaxAge: isso.config.MaxAge,
+		}
+		if v := cookie.String(); v != "" {
+			rb.WithHeader("Set-Cookie", v)
+		}
+	}
+
+	json.Created(rb, struct {
+		model.AcceptComment
+		Created string
+	}{comment, strconv.FormatInt(time.Now().Unix(), 10)})
 }
 
-// Run start the daemon process for go-isso
-func (ws *Worker) Run() {
-	ws.logger.Debug("start run isso server")
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-	signal.Notify(stop, syscall.SIGTERM)
-
-	ws.logger.Printf("begin to listen on %v\n", ws.server.Addr)
-	ws.server.ListenAndServe()
-
-	<-stop
-	ws.logger.Println("shutting down the process...")
+// New a ISSO instance
+func New(cfg config.Config, storage Storage) *ISSO {
+	HashKey, err := storage.GetPreference("hask-key")
+	if err != nil {
+		HashKey = string(securecookie.GenerateRandomKey(64))
+	}
+	BlockKey, err := storage.GetPreference("block-key")
+	if err != nil {
+		BlockKey = string(securecookie.GenerateRandomKey(32))
+	}
+	return &ISSO{
+		config: cfg,
+		guard: guard{
+			v:  NewValidator(),
+			sc: securecookie.New([]byte(HashKey), []byte(BlockKey)),
+		},
+		storage: storage,
+	}
 }

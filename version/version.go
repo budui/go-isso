@@ -1,5 +1,4 @@
-// Package isso provides main struct and version.
-package isso
+package version
 
 var (
 	// BuildTime is the build time of go-isso.
