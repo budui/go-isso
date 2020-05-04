@@ -93,7 +93,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 	}
 
 	json.Created(rb, struct {
-		model.AcceptComment
+		model.SubmitComment
 		Created string
 	}{comment, strconv.FormatInt(time.Now().Unix(), 10)})
 }

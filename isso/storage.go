@@ -22,7 +22,7 @@ type ThreadStorage interface {
 // CommentStorage handles all operations related to Comment and the database.
 type CommentStorage interface {
 	IsApprovedAuthor(email string) bool
-	NewComment(model.AcceptComment) (model.ReplyComment, error)
+	NewComment(model.SubmitComment) (model.ReplyComment, error)
 }
 
 // PreferenceStorage handles all operations related to Preference and the database.

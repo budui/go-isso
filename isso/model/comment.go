@@ -6,18 +6,18 @@ import "time"
 type ReplyComment struct {
 	Dislike       int        `json:"dislike"`
 	Like          int        `json:"like"`
-	ID            int64        `json:"id"`
+	ID            int64      `json:"id"`
 	Mode          int        `json:"mode"`
 	Hash          string     `json:"hash"`
 	Created       time.Time  `json:"created"`
 	Modified      *time.Time `json:"modified"`
 	GravatarImage string     `json:"gravatar_image"`
 
-	AcceptComment
+	SubmitComment
 }
 
-// AcceptComment contains fields that can be submitted
-type AcceptComment struct {
+// SubmitComment contains fields that from user
+type SubmitComment struct {
 	Text         string  `json:"text"  validate:"required,gte=3,lte=65535"`
 	Author       string  `json:"author"  validate:"required,gte=1,lte=15"`
 	Email        string  `json:"email"  validate:"required,email"`
@@ -25,9 +25,9 @@ type AcceptComment struct {
 	Parent       int     `json:"parent" validate:"omitempty"`
 	Notification bool    `json:"notification" validate:"omitempty,min=0,max=2"`
 	Title        string  `json:"title" validate:"omitempty"`
-	
-	URI          string  `json:"-" validate:"required,uri"`
-	Mode         int     `json:"-"`
-	RemoteAddr   string  `json:"-" validate:"required,ip"`
-	ThreadID     int     `json:"-"`
+
+	URI        string `json:"-" validate:"required,uri"`
+	Mode       int    `json:"-"`
+	RemoteAddr string `json:"-" validate:"required,ip"`
+	ThreadID   int    `json:"-"`
 }

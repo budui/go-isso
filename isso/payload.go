@@ -8,13 +8,13 @@ import (
 	"wrong.wang/x/go-isso/isso/model"
 )
 
-func decodeAcceptComment(r io.ReadCloser) (model.AcceptComment, error) {
+func decodeAcceptComment(r io.ReadCloser) (model.SubmitComment, error) {
 	defer r.Close()
 
-	var s model.AcceptComment
+	var s model.SubmitComment
 	decoder := json.NewDecoder(r)
 	if err := decoder.Decode(&s); err != nil {
-		return model.AcceptComment{}, fmt.Errorf("invalid JSON payload: %v", err)
+		return model.SubmitComment{}, fmt.Errorf("invalid JSON payload: %v", err)
 	}
 
 	return s, nil
