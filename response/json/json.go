@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"wrong.wang/x/go-isso/isso/response"
+	"wrong.wang/x/go-isso/response"
 	"wrong.wang/x/go-isso/logger"
 )
 
