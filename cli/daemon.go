@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"wrong.wang/x/go-isso/config"
-	"wrong.wang/x/go-isso/httpd"
+	"wrong.wang/x/go-isso/server"
 	"wrong.wang/x/go-isso/logger"
 )
 
@@ -25,7 +25,7 @@ func startDaemon(cfg config.Config) {
 
 	var httpServer *http.Server
 
-	httpServer = httpd.Serve(cfg)
+	httpServer = server.Serve(cfg)
 
 	<-stop
 	logger.Info("Shutting down the process...")

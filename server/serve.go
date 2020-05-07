@@ -1,4 +1,4 @@
-package httpd
+package server
 
 import (
 	"net"

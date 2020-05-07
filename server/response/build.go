@@ -10,7 +10,7 @@ import (
 	"wrong.wang/x/go-isso/logger"
 )
 
-const compressionThreshold = 1024
+const compressionThreshold = 128
 
 // Builder generates HTTP responses.
 type Builder struct {

@@ -1,9 +1,9 @@
-package httpd
+package server
 
 import (
 	"net/http"
 
-	"wrong.wang/x/go-isso/httpd/response"
+	"wrong.wang/x/go-isso/server/response"
 	"wrong.wang/x/go-isso/isso"
 )
 

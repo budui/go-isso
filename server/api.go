@@ -1,10 +1,10 @@
-package httpd
+package server
 
 import (
 	"net/http"
 
 	"github.com/gorilla/mux"
-	"wrong.wang/x/go-isso/httpd/response"
+	"wrong.wang/x/go-isso/server/response"
 	"wrong.wang/x/go-isso/isso"
 )
 
