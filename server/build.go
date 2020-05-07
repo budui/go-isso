@@ -1,4 +1,4 @@
-package response
+package server
 
 import (
 	"compress/flate"
@@ -13,7 +13,7 @@ import (
 const compressionThreshold = 128
 
 // Builder generates HTTP responses.
-type Builder struct {
+type builder struct {
 	w                 http.ResponseWriter
 	r                 *http.Request
 	err               error
@@ -24,26 +24,26 @@ type Builder struct {
 }
 
 // WithStatus uses the given status code to build the response.
-func (b *Builder) WithStatus(statusCode int) {
+func (b *builder) WithStatus(statusCode int) {
 	b.statusCode = statusCode
 }
 
 // WithError save the error happend during response
-func (b *Builder) WithError(err error) {
+func (b *builder) WithError(err error) {
 	b.err = err
 }
 
 // WithHeader adds the given HTTP header to the response.
-func (b *Builder) WithHeader(key, value string) {
+func (b *builder) WithHeader(key, value string) {
 	b.headers[key] = value
 }
 
 // WithBody uses the given body to build the response.
-func (b *Builder) WithBody(body interface{}) {
+func (b *builder) WithBody(body interface{}) {
 	b.body = body
 }
 
-func (b *Builder) writeHeaders() {
+func (b *builder) writeHeaders() {
 	for key, value := range b.headers {
 		b.w.Header().Set(key, value)
 	}
@@ -51,7 +51,7 @@ func (b *Builder) writeHeaders() {
 	b.w.WriteHeader(b.statusCode)
 }
 
-func (b *Builder) compress(data []byte) {
+func (b *builder) compress(data []byte) {
 	if b.enableCompression && len(data) > compressionThreshold {
 		acceptEncoding := b.r.Header.Get("Accept-Encoding")
 
@@ -80,7 +80,7 @@ func (b *Builder) compress(data []byte) {
 }
 
 // Write generates the HTTP response.
-func (b *Builder) Write() {
+func (b *builder) Write() {
 	if b.body == nil {
 		b.writeHeaders()
 		return
@@ -108,7 +108,7 @@ func (b *Builder) Write() {
 	}
 }
 
-// New creates a new response builder.
-func New(w http.ResponseWriter, r *http.Request) *Builder {
-	return &Builder{w: w, r: r, statusCode: http.StatusOK, headers: make(map[string]string), enableCompression: true}
+// newBuilder creates a new response builder.
+func newBuilder(w http.ResponseWriter, r *http.Request) *builder {
+	return &builder{w: w, r: r, statusCode: http.StatusOK, headers: make(map[string]string), enableCompression: true}
 }
