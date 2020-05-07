@@ -21,6 +21,7 @@ type builder struct {
 	headers           map[string]string
 	enableCompression bool
 	body              interface{}
+	written           bool
 }
 
 // WithStatus uses the given status code to build the response.
@@ -81,6 +82,10 @@ func (b *builder) compress(data []byte) {
 
 // Write generates the HTTP response.
 func (b *builder) Write() {
+	if b.written == true {
+		return
+	}
+	b.written = true
 	if b.body == nil {
 		b.writeHeaders()
 		return
