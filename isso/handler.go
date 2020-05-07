@@ -9,16 +9,16 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
-	"wrong.wang/x/go-isso/isso/model"
 	"wrong.wang/x/go-isso/isso/request"
 	"wrong.wang/x/go-isso/logger"
 	"wrong.wang/x/go-isso/response"
 	"wrong.wang/x/go-isso/response/json"
+	"wrong.wang/x/go-isso/validator"
 )
 
 // CreateComment create a new comment
 func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
-	comment, err := decodeAcceptComment(req.Body)
+	comment, err := decodeComment(req.Body)
 	if err != nil {
 		json.BadRequest(rb, err)
 		return
@@ -26,12 +26,12 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 	comment.URI = mux.Vars(req)["uri"]
 	comment.RemoteAddr = request.FindClientIP(req)
 
-	if err := isso.guard.v.Validate(comment); err != nil {
+	if err := validator.Validate(comment); err != nil {
 		json.BadRequest(rb, err)
 		return
 	}
 
-	var thread model.Thread
+	var thread Thread
 	if isso.storage.ContainsThread(comment.URI) {
 		thread, err = isso.storage.GetThreadByURI(comment.URI)
 		if err != nil {
@@ -46,9 +46,10 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 		}
 	}
 
-	comment.ThreadID = thread.ID
 	if isso.config.Moderation.Enable {
-		if isso.config.Moderation.ApproveAcquaintance && isso.storage.IsApprovedAuthor(comment.Email) {
+		if isso.config.Moderation.ApproveAcquaintance &&
+			comment.Email != nil &&
+			isso.storage.IsApprovedAuthor(*comment.Email) {
 			comment.Mode = 1
 		} else {
 			comment.Mode = 2
@@ -57,7 +58,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 		comment.Mode = 1
 	}
 
-	c, err := isso.storage.NewComment(comment)
+	c, err := isso.storage.NewComment(comment.Comment, thread.ID, comment.RemoteAddr)
 	if err != nil {
 		json.ServerError(rb, fmt.Errorf("can not create new comment %w", err))
 		return
@@ -79,7 +80,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 	}
 
 	json.Created(rb, struct {
-		model.SubmitComment
+		Comment
 		Created string
-	}{comment, strconv.FormatInt(time.Now().Unix(), 10)})
+	}{comment.Comment, strconv.FormatInt(time.Now().Unix(), 10)})
 }

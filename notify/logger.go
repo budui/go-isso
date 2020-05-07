@@ -5,7 +5,7 @@ import (
 
 	"github.com/kr/pretty"
 	"wrong.wang/x/go-isso/event"
-	"wrong.wang/x/go-isso/isso/model"
+	"wrong.wang/x/go-isso/isso"
 	"wrong.wang/x/go-isso/logger"
 )
 
@@ -21,11 +21,11 @@ func (l *Logger) Register(eb *event.Bus) {
 	eb.Subscribe("comments.activate", l.activateComment)
 }
 
-func (l *Logger) newThread(mt model.Thread) {
+func (l *Logger) newThread(mt isso.Thread) {
 	logger.Info("new thread %s: %s", mt.ID, mt.Title)
 }
 
-func (l *Logger) newComment(c model.SubmitComment) {
+func (l *Logger) newComment(c isso.Comment) {
 	logger.Info(fmt.Sprintf("create comment %# v", pretty.Formatter(c)))
 }
 

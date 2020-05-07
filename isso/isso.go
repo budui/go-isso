@@ -13,7 +13,6 @@ type ISSO struct {
 }
 
 type guard struct {
-	v  *Validator
 	sc *securecookie.SecureCookie
 }
 
@@ -30,7 +29,6 @@ func New(cfg config.Config, storage Storage) *ISSO {
 	return &ISSO{
 		config: cfg,
 		guard: guard{
-			v:  NewValidator(),
 			sc: securecookie.New([]byte(HashKey), []byte(BlockKey)),
 		},
 		storage: storage,
