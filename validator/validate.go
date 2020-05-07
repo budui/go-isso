@@ -1,4 +1,4 @@
-package isso
+package validator
 
 import (
 	"errors"
@@ -11,14 +11,16 @@ import (
 	en_translations "github.com/go-playground/validator/v10/translations/en"
 )
 
-// Validator validate struct
-type Validator struct {
+// tValidator validate struct
+type tValidator struct {
 	v *validator.Validate
 	t ut.Translator
 }
 
-// NewValidator return a valid validator
-func NewValidator() *Validator {
+var vd *tValidator
+
+// newtValidator return a valid validator
+func newtValidator() *tValidator {
 	validate := validator.New()
 	en := en.New()
 	uni := ut.New(en, en)
@@ -27,14 +29,14 @@ func NewValidator() *Validator {
 
 	en_translations.RegisterDefaultTranslations(validate, trans)
 
-	return &Validator{
+	return &tValidator{
 		v: validate,
 		t: trans,
 	}
 }
 
 // Validate run the Validator
-func (vd *Validator) Validate(data interface{}) error {
+func (vd *tValidator) validate(data interface{}) error {
 	if err := vd.v.Struct(data); err != nil {
 		var errorString strings.Builder
 		errs := err.(validator.ValidationErrors)
@@ -48,4 +50,12 @@ func (vd *Validator) Validate(data interface{}) error {
 		return errors.New(errorString.String())
 	}
 	return nil
+}
+
+// Validate the struct
+func Validate(data interface{}) error {
+	if vd == nil {
+		vd = newtValidator()
+	}
+	return vd.validate(data)
 }
