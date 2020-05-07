@@ -4,8 +4,6 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
@@ -64,7 +62,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 		return
 	}
 
-	logger.Debug(fmt.Sprintf("new comment: %# v", pretty.Formatter(comment)))
+	logger.Debug(fmt.Sprintf("new comment: %# v", pretty.Formatter(c)))
 
 	if encoded, err := isso.guard.sc.Encode(fmt.Sprintf("%v", c.ID),
 		map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
@@ -79,8 +77,9 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 		}
 	}
 
-	json.Created(rb, struct {
-		Comment
-		Created string
-	}{comment.Comment, strconv.FormatInt(time.Now().Unix(), 10)})
+	if c.Mode == 2 {
+		json.Accepted(rb, c)
+	} else {
+		json.Created(rb, c)
+	}
 }

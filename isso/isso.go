@@ -18,12 +18,12 @@ type guard struct {
 
 // New a ISSO instance
 func New(cfg config.Config, storage Storage) *ISSO {
-	HashKey, err := storage.GetPreference("hask-key")
-	if err != nil {
+	var HashKey, BlockKey string
+	var err error
+	if HashKey, err = storage.GetPreference("hask-key"); err != nil {
 		HashKey = string(securecookie.GenerateRandomKey(64))
 	}
-	BlockKey, err := storage.GetPreference("block-key")
-	if err != nil {
+	if BlockKey, err = storage.GetPreference("block-key"); err != nil {
 		BlockKey = string(securecookie.GenerateRandomKey(32))
 	}
 	return &ISSO{
