@@ -61,5 +61,5 @@ func findOrigin(r *http.Request) string {
 		}
 		return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 	}
-	return ""
+	return origin
 }

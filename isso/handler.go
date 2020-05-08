@@ -18,7 +18,7 @@ import (
 // CreateComment create a new comment
 func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 	commentWebsite := findOrigin(req)
-	if commentWebsite == "" {
+	if commentWebsite == "://" {
 		json.BadRequest(rb, errors.New("can not find origin"))
 		return
 	}
