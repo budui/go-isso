@@ -2,6 +2,7 @@ package isso
 
 import (
 	"crypto/sha1"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -37,16 +38,18 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 	pretty.Println(comment)
 
 	var thread Thread
-	if isso.storage.ContainsThread(req.Context(), comment.URI) {
-		thread, err = isso.storage.GetThreadByURI(req.Context(), comment.URI)
-		if err != nil {
+	thread, err = isso.storage.GetThreadByURI(req.Context(), comment.URI)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// no thread realted to this uri
+			// so create new thread
+			if thread, err = isso.storage.NewThread(req.Context(), comment.URI, comment.Title, commentWebsite); err != nil {
+				json.ServerError(rb, fmt.Errorf("can not create new thread %w", err))
+				return
+			}
+		} else {
+			// can not handled error
 			json.ServerError(rb, fmt.Errorf("can not get thread %w", err))
-			return
-		}
-	} else {
-		thread, err = isso.storage.NewThread(req.Context(), comment.URI, comment.Title, commentWebsite)
-		if err != nil {
-			json.ServerError(rb, fmt.Errorf("can not create new thread %w", err))
 			return
 		}
 	}

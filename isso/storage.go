@@ -11,7 +11,6 @@ type Storage interface {
 
 // ThreadStorage handles all operations related to Thread and the database.
 type ThreadStorage interface {
-	ContainsThread(ctx context.Context, uri string) bool
 	GetThreadByURI(ctx context.Context, uri string) (Thread, error)
 	GetThreadByID(ctx context.Context, id int) (Thread, error)
 	NewThread(ctx context.Context, uri string, title string, Host string) (Thread, error)
