@@ -37,14 +37,14 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 	pretty.Println(comment)
 
 	var thread Thread
-	if isso.storage.ContainsThread(comment.URI) {
-		thread, err = isso.storage.GetThreadByURI(comment.URI)
+	if isso.storage.ContainsThread(req.Context(), comment.URI) {
+		thread, err = isso.storage.GetThreadByURI(req.Context(), comment.URI)
 		if err != nil {
 			json.ServerError(rb, fmt.Errorf("can not get thread %w", err))
 			return
 		}
 	} else {
-		thread, err = isso.storage.NewThread(comment.URI, comment.Title, commentWebsite)
+		thread, err = isso.storage.NewThread(req.Context(), comment.URI, comment.Title, commentWebsite)
 		if err != nil {
 			json.ServerError(rb, fmt.Errorf("can not create new thread %w", err))
 			return
@@ -54,7 +54,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 	if isso.config.Moderation.Enable {
 		if isso.config.Moderation.ApproveAcquaintance &&
 			comment.Email != nil &&
-			isso.storage.IsApprovedAuthor(*comment.Email) {
+			isso.storage.IsApprovedAuthor(req.Context(), *comment.Email) {
 			comment.Mode = 1
 		} else {
 			comment.Mode = 2
@@ -63,7 +63,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 		comment.Mode = 1
 	}
 
-	c, err := isso.storage.NewComment(comment.Comment, thread.ID, comment.RemoteAddr)
+	c, err := isso.storage.NewComment(req.Context(), comment.Comment, thread.ID, comment.RemoteAddr)
 	if err != nil {
 		json.ServerError(rb, fmt.Errorf("can not create new comment %w", err))
 		return
