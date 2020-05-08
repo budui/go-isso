@@ -1,8 +1,4 @@
-// Copyright 2018 Frédéric Guillot. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
-
-package request // import "miniflux.app/http/request"
+package isso
 
 import (
 	"net"
@@ -10,8 +6,7 @@ import (
 	"strings"
 )
 
-// FindClientIP returns client real IP address.
-func FindClientIP(r *http.Request) string {
+func findClientIP(r *http.Request) string {
 	headers := []string{"X-Forwarded-For", "X-Real-Ip"}
 	for _, header := range headers {
 		value := r.Header.Get(header)

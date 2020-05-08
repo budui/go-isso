@@ -7,7 +7,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/kr/pretty"
-	"wrong.wang/x/go-isso/isso/request"
 	"wrong.wang/x/go-isso/logger"
 	"wrong.wang/x/go-isso/response"
 	"wrong.wang/x/go-isso/response/json"
@@ -22,7 +21,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 		return
 	}
 	comment.URI = mux.Vars(req)["uri"]
-	comment.RemoteAddr = request.FindClientIP(req)
+	comment.RemoteAddr = findClientIP(req)
 
 	if err := validator.Validate(comment); err != nil {
 		json.BadRequest(rb, err)
