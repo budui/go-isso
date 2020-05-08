@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -49,4 +50,16 @@ func findClientIP(r *http.Request) string {
 	}
 
 	return remoteIP
+}
+
+func findOrigin(r *http.Request) string {
+	origin := r.Header.Get("origin")
+	if origin == "" {
+		u, err := url.Parse(r.Referer())
+		if err != nil {
+			return ""
+		}
+		return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+	}
+	return ""
 }

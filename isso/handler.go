@@ -2,6 +2,7 @@ package isso
 
 import (
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -15,6 +16,11 @@ import (
 
 // CreateComment create a new comment
 func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
+	commentWebsite := findOrigin(req)
+	if commentWebsite == "" {
+		json.BadRequest(rb, errors.New("can not find origin"))
+		return
+	}
 	var comment submittedComment
 	err := jsonBind(req.Body, &comment)
 	if err != nil {
@@ -38,7 +44,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 			return
 		}
 	} else {
-		thread, err = isso.storage.NewThread(comment.URI, comment.Title, req.Host)
+		thread, err = isso.storage.NewThread(comment.URI, comment.Title, commentWebsite)
 		if err != nil {
 			json.ServerError(rb, fmt.Errorf("can not create new thread %w", err))
 			return
