@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"wrong.wang/x/go-isso/config"
+	"wrong.wang/x/go-isso/database"
 	"wrong.wang/x/go-isso/isso"
 	"wrong.wang/x/go-isso/logger"
 )
@@ -80,7 +81,11 @@ func setupHandler(cfg config.Config) *mux.Router {
 		return false
 	}).Subrouter()
 
-	registerRoute(router, isso.New(cfg, nil))
+	storage, err:= database.New(cfg.DBPath, 1*time.Second)
+	if err != nil {
+		logger.Fatal("init database failed %w", err)
+	}
+	registerRoute(router, isso.New(cfg, storage))
 
 	return router
 }

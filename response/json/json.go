@@ -25,6 +25,7 @@ func writeJSON(builder response.Builder, body interface{}, status int) {
 
 func writeErrorJSON(builder response.Builder, err error, status int) {
 	if err != nil {
+		builder.WithError(err)
 		writeJSON(builder, map[string]string{"error": err.Error()}, status)
 	}
 	writeJSON(builder, map[string]string{"error": http.StatusText(status)}, status)
