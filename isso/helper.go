@@ -1,10 +1,24 @@
 package isso
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strings"
 )
+
+func jsonBind(r io.ReadCloser, obj interface{}) error {
+	defer r.Close()
+
+	decoder := json.NewDecoder(r)
+	if err := decoder.Decode(obj); err != nil {
+		return fmt.Errorf("invalid JSON payload: %v", err)
+	}
+
+	return nil
+}
 
 func findClientIP(r *http.Request) string {
 	headers := []string{"X-Forwarded-For", "X-Real-Ip"}

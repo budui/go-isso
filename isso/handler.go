@@ -15,7 +15,8 @@ import (
 
 // CreateComment create a new comment
 func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
-	comment, err := decodeComment(req.Body)
+	var comment submittedComment
+	err := jsonBind(req.Body, &comment)
 	if err != nil {
 		json.BadRequest(rb, err)
 		return
@@ -27,6 +28,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 		json.BadRequest(rb, err)
 		return
 	}
+	pretty.Println(comment)
 
 	var thread Thread
 	if isso.storage.ContainsThread(comment.URI) {
