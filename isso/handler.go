@@ -106,10 +106,10 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 	}
 	type reply struct {
 		Comment
-		Hash          string  `json:"hash"`
-		HiddenReplies *int64  `json:"hidden_replies,omitempty"`
-		TotalReplies  *int64  `json:"total_replies,omitempty"`
-		Replies       []reply `json:"replies"`
+		Hash          string   `json:"hash"`
+		HiddenReplies *int64   `json:"hidden_replies,omitempty"`
+		TotalReplies  *int64   `json:"total_replies,omitempty"`
+		Replies       *[]reply `json:"replies,omitempty"`
 	}
 	decoder := schema.NewDecoder()
 	decoder.IgnoreUnknownKeys(true)
@@ -186,14 +186,18 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 			rJSON.Replies = makeReplies(commentsByParent[0], urlparm.After, urlparm.Limit, plain)
 			rJSON.HiddenReplies = rJSON.TotalReplies - int64(len(rJSON.Replies))
 			var zero int64
+			emptyarray := make([]reply, 0)
 			for i := range rJSON.Replies {
 				count, ok := replyCount[rJSON.Replies[i].ID]
 				if !ok {
 					rJSON.Replies[i].TotalReplies = &zero
+					rJSON.Replies[i].Replies = &emptyarray
+					rJSON.Replies[i].HiddenReplies = &zero
 				} else {
+					replies := makeReplies(commentsByParent[rJSON.Replies[i].ID], urlparm.After, urlparm.NestedLimit, plain)
 					rJSON.Replies[i].TotalReplies = &count
-					rJSON.Replies[i].Replies = makeReplies(commentsByParent[rJSON.Replies[i].ID], urlparm.After, urlparm.NestedLimit, plain)
-					cc := *rJSON.Replies[i].TotalReplies - int64(len(rJSON.Replies[i].Replies))
+					rJSON.Replies[i].Replies = &replies
+					cc := *rJSON.Replies[i].TotalReplies - int64(len(*rJSON.Replies[i].Replies))
 					rJSON.Replies[i].HiddenReplies = &cc
 				}
 			}
