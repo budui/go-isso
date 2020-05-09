@@ -57,6 +57,8 @@ var (
 			   ($2 | comments.mode = $3) AND comments.created > $4 GROUP BY comments.parent`,
 		"comment_fetch_by_uri": `SELECT comments.* FROM comments INNER JOIN threads ON
 			threads.uri=? AND comments.tid=threads.id AND (? | comments.mode) = ?`,
+		"comment_count": `SELECT threads.uri, COUNT(comments.id) FROM comments LEFT OUTER JOIN 
+		threads ON threads.id = tid AND comments.mode = 1 GROUP BY threads.uri`,
 	}
 )
 

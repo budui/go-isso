@@ -8,7 +8,7 @@ import (
 	"wrong.wang/x/go-isso/response"
 )
 
-func wrapBuilder(f func(response.Builder, *http.Request)) http.HandlerFunc {
+func wrap(f func(response.Builder, *http.Request)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		b := newBuilder(w, r)
 		f(b, r)
@@ -25,7 +25,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 
 func registerRoute(router *mux.Router, isso *isso.ISSO) {
 	// single comment
-	router.HandleFunc("/new", wrapBuilder(isso.CreateComment)).Queries("uri", "{uri}").Methods("POST").Name("new")
+	router.HandleFunc("/new", wrap(isso.CreateComment)).Queries("uri", "{uri}").Methods("POST").Name("new")
 	router.HandleFunc("/id/{id:[0-9]+}", workInProcess).Methods("GET").Name("view")
 	router.HandleFunc("/id/{id:[0-9]+}", workInProcess).Methods("PUT").Name("edit")
 	router.HandleFunc("/id/{id:[0-9]+}", workInProcess).Methods("DELETE").Name("delete")
@@ -52,6 +52,6 @@ func registerRoute(router *mux.Router, isso *isso.ISSO) {
 	// total staff
 	router.HandleFunc("/latest", workInProcess).Methods("GET").Name("latest")
 	router.HandleFunc("/count", workInProcess).Methods("GET").Name("count")
-	router.HandleFunc("/count", workInProcess).Methods("POST").Name("counts")
-	router.HandleFunc("/", wrapBuilder(isso.FetchComments())).Queries("uri", "{uri}").Methods("GET").Name("fetch")
+	router.HandleFunc("/count", wrap(isso.CountComment())).Methods("POST").Name("counts")
+	router.HandleFunc("/", wrap(isso.FetchComments())).Queries("uri", "{uri}").Methods("GET").Name("fetch")
 }

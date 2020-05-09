@@ -186,3 +186,40 @@ func (d *Database) FetchCommentsByURI(ctx context.Context, uri string, parent in
 	}
 	return commentsbyparent, nil
 }
+
+// CountComment count comment per thread
+func (d *Database) CountComment(ctx context.Context, uris []string) (map[string]int64, error) {
+	ctx, cancel := d.withTimeout(ctx)
+	defer cancel()
+	commentByURI := map[string]int64{}
+	if len(uris) == 0 {
+		return commentByURI, nil
+	}
+	rows, err := d.DB.QueryContext(ctx, d.statement["comment_count"])
+	defer rows.Close()
+
+	if err != nil {
+		return nil, fmt.Errorf("CountComment failed %w", err)
+	}
+
+	for rows.Next() {
+		var uri string
+		var count int64
+		err := rows.Scan(&uri, &count)
+		if err != nil {
+			return nil, fmt.Errorf("CountComment failed %w", err)
+		}
+		commentByURI[uri] = count
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("CountComment failed %w", err)
+	}
+
+	uriMap := map[string]int64{}
+	for _, uri := range uris {
+		uriMap[uri] = commentByURI[uri]
+	}
+	return uriMap, nil
+}

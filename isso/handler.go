@@ -211,3 +211,30 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 		json.OK(rb, rJSON)
 	}
 }
+
+// CountComment return every thread's comment amount
+func (isso *ISSO) CountComment() func(rb response.Builder, req *http.Request) {
+	return func(rb response.Builder, req *http.Request) {
+		uris := []string{}
+		err := jsonBind(req.Body, &uris)
+		if err != nil {
+			json.BadRequest(rb, err)
+			return
+		}
+		counts := []int64{}
+		if len(uris) == 0 {
+			json.OK(rb, counts)
+			return
+		}
+		countsByURI, err := isso.storage.CountComment(req.Context(), uris)
+		if err != nil {
+			json.ServerError(rb, err)
+			return
+		}
+		for _, i := range countsByURI {
+			counts = append(counts, i)
+		}
+		json.OK(rb, counts)
+		return
+	}
+}

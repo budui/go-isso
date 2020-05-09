@@ -24,6 +24,7 @@ type CommentStorage interface {
 	// CountReply return parent-count map, 0 mean null `parent`
 	CountReply(ctx context.Context, uri string, mode int, after float64) (map[int64]int64, error)
 	FetchCommentsByURI(ctx context.Context, uri string, parent int64, mode int, orderBy string, asc bool) (map[int64][]Comment, error)
+	CountComment(ctx context.Context, uris []string) (map[string]int64, error)
 }
 
 // PreferenceStorage handles all operations related to Preference and the database.
