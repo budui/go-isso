@@ -52,7 +52,8 @@ func findClientIP(r *http.Request) string {
 	return remoteIP
 }
 
-func findOrigin(r *http.Request) string {
+// FindOrigin first try to find origin header, then `referer`
+func FindOrigin(r *http.Request) string {
 	origin := r.Header.Get("origin")
 	if origin == "" {
 		u, err := url.Parse(r.Referer())

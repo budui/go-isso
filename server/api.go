@@ -53,5 +53,5 @@ func registerRoute(router *mux.Router, isso *isso.ISSO) {
 	router.HandleFunc("/latest", workInProcess).Methods("GET").Name("latest")
 	router.HandleFunc("/count", workInProcess).Methods("GET").Name("count")
 	router.HandleFunc("/count", workInProcess).Methods("POST").Name("counts")
-	router.HandleFunc("/", wrapBuilder(isso.FetchComments())).Methods("GET").Name("fetch")
+	router.HandleFunc("/", wrapBuilder(isso.FetchComments())).Queries("uri", "{uri}").Methods("GET").Name("fetch")
 }

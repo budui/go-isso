@@ -18,7 +18,7 @@ import (
 
 // CreateComment create a new comment
 func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
-	commentWebsite := findOrigin(req)
+	commentWebsite := FindOrigin(req)
 	if commentWebsite == "://" {
 		json.BadRequest(rb, errors.New("can not find origin"))
 		return
@@ -111,6 +111,7 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 		Replies       []reply `json:"replies"`
 	}
 	decoder := schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
 
 	makeReplies := func(cs []Comment, after float64, limit int64, plain bool) []reply {
 		var replies []reply
@@ -126,7 +127,7 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 
 	return func(rb response.Builder, req *http.Request) {
 		var urlparm urlParm
-		err := decoder.Decode(urlparm, req.URL.Query())
+		err := decoder.Decode(&urlparm, req.URL.Query())
 		if err != nil {
 			json.BadRequest(rb, err)
 			return

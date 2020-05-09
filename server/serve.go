@@ -3,7 +3,6 @@ package server
 import (
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -69,19 +68,16 @@ func startHTTPServer(server *http.Server) {
 func setupHandler(cfg config.Config) *mux.Router {
 	router := mux.NewRouter()
 	router = router.MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
+		origin := isso.FindOrigin(r)
 		for _, allowHost := range cfg.Host {
-			u, err := url.Parse(allowHost)
-			if err != nil {
-				logger.Fatal("%s is not valid host: %s", allowHost, err)
-			}
-			if u.Hostname() == r.Host {
+			if origin == allowHost {
 				return true
 			}
 		}
 		return false
 	}).Subrouter()
 
-	storage, err:= database.New(cfg.DBPath, 1*time.Second)
+	storage, err := database.New(cfg.DBPath, 1*time.Second)
 	if err != nil {
 		logger.Fatal("init database failed %w", err)
 	}
