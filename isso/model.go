@@ -21,11 +21,11 @@ type Comment struct {
 	Likes        int      `json:"like"`
 	Dislikes     int      `json:"dislike"`
 	Notification int      `json:"notification" validate:"omitempty,min=0,max=2"`
+	RemoteAddr   string   `json:"-" validate:"required,ip"`
 }
 
 type submittedComment struct {
 	Comment
-	RemoteAddr string `json:"-" validate:"required,ip"`
 	URI        string `json:"-" validate:"required,uri"`
 	Title      string `json:"title" validate:"omitempty"`
 }

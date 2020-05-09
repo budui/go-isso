@@ -88,6 +88,7 @@ func (nc nullComment) ToComment() isso.Comment {
 		Likes:        nc.Likes,
 		Dislikes:     nc.Dislikes,
 		Notification: nc.Notification,
+		RemoteAddr:   nc.RemoteAddr,
 	}
 }
 
