@@ -87,7 +87,10 @@ func setupHandler(cfg config.Config) http.Handler {
 	c := cors.New(cors.Options{
 		AllowedOrigins:   cfg.Host,
 		AllowCredentials: true,
-		Debug: false,
+		AllowedHeaders:   []string{"Origin", "Referer", "Content-Type"},
+		ExposedHeaders:   []string{"X-Set-Cookie", "Date"},
+		AllowedMethods:   []string{"HEAD", "GET", "POST", "PUT", "DELETE"},
+		Debug:            false,
 	})
 
 	return c.Handler(router)

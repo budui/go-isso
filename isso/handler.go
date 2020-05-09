@@ -83,6 +83,9 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 			Path:   "/",
 			MaxAge: isso.config.MaxAge,
 		}
+		// TODO: 由于 Cookie “88”的“sameSite”属性设置为“none”，但缺少“secure”属性，此 Cookie 未来将被拒绝。
+		// 若要了解“sameSite“的更多信息，请参阅：https://developer.mozilla.org/docs/Web/HTTP/Cookies
+		// TODO: X-Set-Cookie
 		if v := cookie.String(); v != "" {
 			rb.WithHeader("Set-Cookie", v)
 		}

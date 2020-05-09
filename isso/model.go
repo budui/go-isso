@@ -18,8 +18,8 @@ type Comment struct {
 	Author       string   `json:"author"  validate:"required,gte=1,lte=15"`
 	Email        *string  `json:"email,omitempty"  validate:"omitempty,email"`
 	Website      *string  `json:"website"  validate:"omitempty,url"`
-	Likes        int      `json:"like"`
-	Dislikes     int      `json:"dislike"`
+	Likes        int      `json:"likes"`
+	Dislikes     int      `json:"dislikes"`
 	Notification int      `json:"notification" validate:"omitempty,min=0,max=2"`
 	RemoteAddr   string   `json:"-" validate:"required,ip"`
 }

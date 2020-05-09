@@ -53,5 +53,10 @@ func registerRoute(router *mux.Router, isso *isso.ISSO) {
 	router.HandleFunc("/latest", workInProcess).Methods("GET").Name("latest")
 	router.HandleFunc("/count", workInProcess).Methods("GET").Name("count")
 	router.HandleFunc("/count", wrap(isso.CountComment())).Methods("POST").Name("counts")
+	router.HandleFunc("/js/embed.min.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		http.ServeFile(w, r, "./static/js/embed.min.js")
+	})
+
 	router.HandleFunc("/", wrap(isso.FetchComments())).Queries("uri", "{uri}").Methods("GET").Name("fetch")
 }
