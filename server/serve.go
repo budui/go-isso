@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"wrong.wang/x/go-isso/config"
 	"wrong.wang/x/go-isso/database"
 	"wrong.wang/x/go-isso/isso"
@@ -65,7 +66,7 @@ func startHTTPServer(server *http.Server) {
 	}()
 }
 
-func setupHandler(cfg config.Config) *mux.Router {
+func setupHandler(cfg config.Config) http.Handler {
 	router := mux.NewRouter()
 	router = router.MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
 		origin := isso.FindOrigin(r)
@@ -83,5 +84,11 @@ func setupHandler(cfg config.Config) *mux.Router {
 	}
 	registerRoute(router, isso.New(cfg, storage))
 
-	return router
+	c := cors.New(cors.Options{
+		AllowedOrigins:   cfg.Host,
+		AllowCredentials: true,
+		Debug: false,
+	})
+
+	return c.Handler(router)
 }

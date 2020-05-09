@@ -11,6 +11,7 @@ require (
 	github.com/gorilla/securecookie v1.1.1
 	github.com/kr/pretty v0.2.0
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
+	github.com/rs/cors v1.7.0
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/yuin/goldmark v1.1.30
 	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
