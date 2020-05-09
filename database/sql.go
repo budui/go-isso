@@ -36,13 +36,13 @@ var (
     	END;
 		`,
 		"migrate_add_notification": `ALTER TABLE comments ADD COLUMN notification INTEGER DEFAULT 0;`,
-		
+
 		"preference_get": `SELECT value FROM preferences WHERE key=$1;`,
 		"preference_set": `INSERT INTO preferences (key, value) VALUES ($1, $2);`,
 
 		"thread_get_by_uri": `SELECT * FROM threads WHERE uri=$1;`,
-		"thread_get_by_id": `SELECT * FROM threads WHERE id=$1;`,
-		"thread_new": `INSERT INTO threads (uri, title) VALUES ($1, $2);`,
+		"thread_get_by_id":  `SELECT * FROM threads WHERE id=$1;`,
+		"thread_new":        `INSERT INTO threads (uri, title) VALUES ($1, $2);`,
 
 		"comment_new": `INSERT INTO comments (
         	tid, parent, created, modified, mode, remote_addr,
@@ -51,11 +51,14 @@ var (
 		"comment_get_by_id": `SELECT * FROM comments WHERE id=$1`,
 		"comment_is_previously_approved_author": `SELECT CASE WHEN EXISTS(
 			SELECT * FROM comments WHERE email=$1 AND mode=1 AND created > strftime("%s", DATETIME("now", "-6 month"))
-		) THEN 1 ELSE 0 END;
-		`,
+		) THEN 1 ELSE 0 END;`,
+		"comment_count_reply": `SELECT comments.parent,count(*)
+			FROM comments INNER JOIN threads ON threads.uri=$1 AND comments.tid=threads.id AND
+			   ($2 | comments.mode = $3) AND comments.created > $4 GROUP BY comments.parent`,
+		"comment_fetch_by_uri": `SELECT comments.* FROM comments INNER JOIN threads ON
+			threads.uri=? AND comments.tid=threads.id AND (? | comments.mode) = ?`,
 	}
 )
-
 
 var presetSQL map[string]map[string]string = map[string]map[string]string{
 	"sqlite3": presetSQLITE3,

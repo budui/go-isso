@@ -7,6 +7,7 @@ require (
 	github.com/go-playground/universal-translator v0.17.0
 	github.com/go-playground/validator/v10 v10.2.0
 	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/schema v1.1.0
 	github.com/gorilla/securecookie v1.1.1
 	github.com/kr/pretty v0.2.0
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
