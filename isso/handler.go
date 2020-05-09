@@ -13,7 +13,7 @@ import (
 	"wrong.wang/x/go-isso/logger"
 	"wrong.wang/x/go-isso/response"
 	"wrong.wang/x/go-isso/response/json"
-	"wrong.wang/x/go-isso/validator"
+	"wrong.wang/x/go-isso/tool/validator"
 )
 
 // CreateComment create a new comment
@@ -106,6 +106,7 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 	}
 	type reply struct {
 		Comment
+		Hash          string  `json:"hash"`
 		HiddenReplies *int64  `json:"hidden_replies,omitempty"`
 		TotalReplies  *int64  `json:"total_replies,omitempty"`
 		Replies       []reply `json:"replies"`
@@ -122,7 +123,10 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 		for _, c := range cs {
 			if c.Created > after && count < limit {
 				count++
-				replies = append(replies, reply{c, nil, nil, nil})
+				commentHash := c.Hash(isso.guard.hash.Hash)
+				c.Email = nil
+
+				replies = append(replies, reply{c, commentHash, nil, nil, nil})
 			}
 		}
 		return replies

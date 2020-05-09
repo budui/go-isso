@@ -26,6 +26,17 @@ type Comment struct {
 
 type submittedComment struct {
 	Comment
-	URI        string `json:"-" validate:"required,uri"`
-	Title      string `json:"title" validate:"omitempty"`
+	URI   string `json:"-" validate:"required,uri"`
+	Title string `json:"title" validate:"omitempty"`
+}
+
+// Hash use provited hash worker to hash itself
+func (c Comment) Hash(worker func(string) string) string {
+	var s string
+	if c.Email != nil {
+		s = *c.Email
+	} else {
+		s = c.RemoteAddr
+	}
+	return worker(s)
 }
