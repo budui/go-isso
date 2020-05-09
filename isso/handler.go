@@ -98,11 +98,11 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 // FetchComments fetch all related comments
 func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 	type urlParm struct {
-		parent      *int64
-		limit       int64
-		nestedLimit int64 `schema:"nested_limit"`
-		after       float64
-		plain       int64
+		Parent      *int64  `schema:"parent"`
+		Limit       int64   `schema:"limit"`
+		NestedLimit int64   `schema:"nested_limit"`
+		After       float64 `schema:"after"`
+		Plain       int64   `schema:"plain"`
 	}
 	type reply struct {
 		Comment
@@ -136,17 +136,17 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 			return
 		}
 		var parent int64
-		if urlparm.parent == nil {
+		if urlparm.Parent == nil {
 			parent = -1
 		} else {
-			parent = *urlparm.parent
+			parent = *urlparm.Parent
 		}
 		var plain bool
-		if urlparm.plain != 0 {
+		if urlparm.Plain != 0 {
 			plain = true
 		}
 
-		replyCount, err := isso.storage.CountReply(req.Context(), mux.Vars(req)["uri"], 5, urlparm.after)
+		replyCount, err := isso.storage.CountReply(req.Context(), mux.Vars(req)["uri"], 5, urlparm.After)
 		if err != nil {
 			json.ServerError(rb, err)
 			return
@@ -156,19 +156,18 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 			replyCount[parent] = 0
 		}
 
-		commentsByParent, err := isso.storage.FetchCommentsByURI(req.Context(), mux.Vars(req)["uri"], parent, 5, "id", false)
+		commentsByParent, err := isso.storage.FetchCommentsByURI(req.Context(), mux.Vars(req)["uri"], parent, 5, "id", true)
 		if err != nil {
 			json.ServerError(rb, fmt.Errorf("fetch comments failed %w", err))
 			return
 		}
-
 		rJSON := struct {
 			TotalReplies  int64   `json:"total_replies"`
 			Replies       []reply `json:"replies"`
 			ID            *int64  `json:"id"`
 			HiddenReplies int64   `json:"hidden_replies"`
 		}{
-			ID: urlparm.parent,
+			ID: urlparm.Parent,
 		}
 
 		// null parent, only fetch top-comment
@@ -176,24 +175,24 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 			// parent == -1 means need all comment's, here TotalReplies means top-leval comments
 			rJSON.TotalReplies = replyCount[0]
 
-			rJSON.Replies = makeReplies(commentsByParent[0], urlparm.after, urlparm.limit, plain)
+			rJSON.Replies = makeReplies(commentsByParent[0], urlparm.After, urlparm.Limit, plain)
 			rJSON.HiddenReplies = rJSON.TotalReplies - int64(len(rJSON.Replies))
 			var zero int64
-			for _, r := range rJSON.Replies {
-				count, ok := replyCount[r.ID]
+			for i := range rJSON.Replies {
+				count, ok := replyCount[rJSON.Replies[i].ID]
 				if !ok {
-					r.TotalReplies = &zero
+					rJSON.Replies[i].TotalReplies = &zero
 				} else {
-					r.TotalReplies = &count
-					r.Replies = makeReplies(commentsByParent[r.ID], urlparm.after, urlparm.nestedLimit, plain)
-					cc := *r.TotalReplies - int64(len(r.Replies))
-					r.HiddenReplies = &cc
+					rJSON.Replies[i].TotalReplies = &count
+					rJSON.Replies[i].Replies = makeReplies(commentsByParent[rJSON.Replies[i].ID], urlparm.After, urlparm.NestedLimit, plain)
+					cc := *rJSON.Replies[i].TotalReplies - int64(len(rJSON.Replies[i].Replies))
+					rJSON.Replies[i].HiddenReplies = &cc
 				}
 			}
 
 		} else if parent > 0 {
 			rJSON.TotalReplies = replyCount[parent]
-			rJSON.Replies = makeReplies(commentsByParent[parent], urlparm.after, urlparm.limit, plain)
+			rJSON.Replies = makeReplies(commentsByParent[parent], urlparm.After, urlparm.Limit, plain)
 			rJSON.HiddenReplies = rJSON.TotalReplies - int64(len(rJSON.Replies))
 		} else {
 			// parent = 0 not exist
