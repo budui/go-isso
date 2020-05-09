@@ -11,11 +11,11 @@ import (
 type ISSO struct {
 	storage Storage
 	config  config.Config
-	guard   guard
+	tools   tools
 }
 
-type guard struct {
-	sc   *securecookie.SecureCookie
+type tools struct {
+	securecookie   *securecookie.SecureCookie
 	hash *hash.Worker
 }
 
@@ -41,8 +41,8 @@ func New(cfg config.Config, storage Storage) *ISSO {
 	HashKey = string(securecookie.GenerateRandomKey(64))
 	return &ISSO{
 		config: cfg,
-		guard: guard{
-			sc: securecookie.New([]byte(HashKey), []byte(BlockKey)),
+		tools: tools{
+			securecookie: securecookie.New([]byte(HashKey), []byte(BlockKey)),
 			// TODO: use conf to special hash
 			hash: hash.New("pbkdf2:1000:6:sha1", "Eech7co8Ohloopo9Ol6baimi"),
 		},

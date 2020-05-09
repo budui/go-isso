@@ -31,12 +31,12 @@ type submittedComment struct {
 }
 
 // Hash use provited hash worker to hash itself
-func (c Comment) Hash(worker func(string) string) string {
+func (c Comment) Hash(worker interface{Hash(string) string}) string {
 	var s string
 	if c.Email != nil {
 		s = *c.Email
 	} else {
 		s = c.RemoteAddr
 	}
-	return worker(s)
+	return worker.Hash(s)
 }

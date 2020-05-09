@@ -75,7 +75,7 @@ func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
 
 	logger.Debug(fmt.Sprintf("new comment: %# v", pretty.Formatter(c)))
 
-	if encoded, err := isso.guard.sc.Encode(fmt.Sprintf("%v", c.ID),
+	if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
 		map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
 		cookie := &http.Cookie{
 			Name:   fmt.Sprintf("%v", c.ID),
@@ -123,7 +123,7 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 		for _, c := range cs {
 			if c.Created > after && count < limit {
 				count++
-				commentHash := c.Hash(isso.guard.hash.Hash)
+				commentHash := c.Hash(isso.tools.hash)
 				c.Email = nil
 
 				replies = append(replies, reply{c, commentHash, nil, nil, nil})
