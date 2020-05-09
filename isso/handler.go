@@ -116,6 +116,9 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 	makeReplies := func(cs []Comment, after float64, limit int64, plain bool) []reply {
 		var replies []reply
 		var count int64
+		if limit <= 0 {
+			limit = int64(len(cs) + 1)
+		}
 		for _, c := range cs {
 			if c.Created > after && count < limit {
 				count++

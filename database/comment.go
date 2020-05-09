@@ -93,12 +93,11 @@ func (d *Database) getComment(ctx context.Context, id int64) (nullComment, error
 // CountReply return comment count for main thread's comment and all reply threads for one uri.
 // 0 mean null parent
 func (d *Database) CountReply(ctx context.Context, uri string, mode int, after float64) (map[int64]int64, error) {
-	logger.Debug("database: CountReplyPerComment %s", uri)
+	logger.Debug("database: CountReplyPerComment [%s]", uri)
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
 
-	var topCommentsCount int64
-	var counts map[int64]int64
+	counts := map[int64]int64{}
 
 	rows, err := d.DB.QueryContext(ctx, d.statement["comment_count_reply"], uri, mode, mode, after)
 	if err != nil {
@@ -115,13 +114,12 @@ func (d *Database) CountReply(ctx context.Context, uri string, mode int, after f
 		if p.Valid {
 			counts[p.Int64] = c
 		} else {
-			topCommentsCount = c
+			counts[0] = c
 		}
 	}
 	if rows.Err() != nil {
 		return nil, fmt.Errorf("CountReplyPerComment failed %w", err)
 	}
-	counts[0] = topCommentsCount
 	return counts, nil
 }
 
@@ -163,7 +161,7 @@ func (d *Database) FetchCommentsByURI(ctx context.Context, uri string, parent in
 		return nil, fmt.Errorf("FetchCommentsByURI failed %w", err)
 	}
 
-	var commentsbyparent map[int64][]isso.Comment
+	commentsbyparent := map[int64][]isso.Comment{}
 
 	for rows.Next() {
 		var nc nullComment
