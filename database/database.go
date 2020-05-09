@@ -75,7 +75,7 @@ type nullComment struct {
 }
 
 func (nc nullComment) ToComment() isso.Comment {
-	return isso.Comment{
+	c := isso.Comment{
 		ID:           nc.ID,
 		Parent:       &nc.Parent.Int64,
 		Created:      nc.Created,
@@ -90,6 +90,19 @@ func (nc nullComment) ToComment() isso.Comment {
 		Notification: nc.Notification,
 		RemoteAddr:   nc.RemoteAddr,
 	}
+	if !nc.Parent.Valid {
+		c.Parent = nil
+	}
+	if !nc.Modified.Valid {
+		c.Modified = nil
+	}
+	if !nc.Email.Valid {
+		c.Email = nil
+	}
+	if !nc.Website.Valid {
+		c.Website = nil
+	}
+	return c
 }
 
 func newNullComment(c isso.Comment, threadID int64, remoteAddr string) nullComment {

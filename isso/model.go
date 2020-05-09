@@ -16,7 +16,7 @@ type Comment struct {
 	Mode         int      `json:"mode"`
 	Text         string   `json:"text"  validate:"required,gte=3,lte=65535"`
 	Author       string   `json:"author"  validate:"required,gte=1,lte=15"`
-	Email        *string  `json:"email"  validate:"omitempty,email"`
+	Email        *string  `json:"email,omitempty"  validate:"omitempty,email"`
 	Website      *string  `json:"website"  validate:"omitempty,url"`
 	Likes        int      `json:"like"`
 	Dislikes     int      `json:"dislike"`
