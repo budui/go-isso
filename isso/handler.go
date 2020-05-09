@@ -125,7 +125,11 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 				count++
 				commentHash := c.Hash(isso.tools.hash)
 				c.Email = nil
-
+				if !plain {
+					if text, err := isso.tools.markdown.Convert(c.Text); err == nil {
+						c.Text = text
+					}
+				}
 				replies = append(replies, reply{c, commentHash, nil, nil, nil})
 			}
 		}
