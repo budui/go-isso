@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
@@ -115,13 +116,6 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 		After       float64 `schema:"after"`
 		Plain       int64   `schema:"plain"`
 	}
-	type reply struct {
-		Comment
-		Hash          string   `json:"hash"`
-		HiddenReplies *int64   `json:"hidden_replies,omitempty"`
-		TotalReplies  *int64   `json:"total_replies,omitempty"`
-		Replies       *[]reply `json:"replies,omitempty"`
-	}
 	decoder := schema.NewDecoder()
 	decoder.IgnoreUnknownKeys(true)
 
@@ -134,14 +128,8 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 		for _, c := range cs {
 			if c.Created > after && count < limit {
 				count++
-				commentHash := c.Hash(isso.tools.hash)
-				c.Email = nil
-				if !plain {
-					if text, err := isso.tools.markdown.Convert(c.Text); err == nil {
-						c.Text = text
-					}
-				}
-				replies = append(replies, reply{c, commentHash, nil, nil, nil})
+				r, _ := c.convert(plain, isso.tools.hash, isso.tools.markdown)
+				replies = append(replies, r)
 			}
 		}
 		return replies
@@ -250,6 +238,36 @@ func (isso *ISSO) CountComment() func(rb response.Builder, req *http.Request) {
 			counts = append(counts, i)
 		}
 		json.OK(rb, counts)
+		return
+	}
+}
+
+// ViewComment return specific comment
+func (isso *ISSO) ViewComment() func(rb response.Builder, req *http.Request) {
+	return func(rb response.Builder, req *http.Request) {
+		id, err := strconv.ParseInt(mux.Vars(req)["id"], 10, 64)
+		if err != nil {
+			json.BadRequest(rb, fmt.Errorf("invalid id %w", err))
+			return
+		}
+
+		var plain bool
+		if req.URL.Query().Get("plain") == "0" {
+			plain = true
+		}
+
+		comment, err := isso.storage.GetComment(req.Context(), id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				json.NotFound(rb)
+				return
+			}
+			json.ServerError(rb, fmt.Errorf("get comment failed %w", err))
+			return
+		}
+
+		r, _ := comment.convert(plain, isso.tools.hash, isso.tools.markdown)
+		json.OK(rb, r)
 		return
 	}
 }

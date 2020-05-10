@@ -26,7 +26,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 func registerRoute(router *mux.Router, isso *isso.ISSO) {
 	// single comment
 	router.HandleFunc("/new", wrap(isso.CreateComment)).Queries("uri", "{uri}").Methods("POST").Name("new")
-	router.HandleFunc("/id/{id:[0-9]+}", workInProcess).Methods("GET").Name("view")
+	router.HandleFunc("/id/{id:[0-9]+}", wrap(isso.ViewComment())).Methods("GET").Name("view")
 	router.HandleFunc("/id/{id:[0-9]+}", workInProcess).Methods("PUT").Name("edit")
 	router.HandleFunc("/id/{id:[0-9]+}", workInProcess).Methods("DELETE").Name("delete")
 	router.HandleFunc("/id/{id:[0-9]+}/like", workInProcess).Methods("POST").Name("like")
@@ -53,6 +53,7 @@ func registerRoute(router *mux.Router, isso *isso.ISSO) {
 	router.HandleFunc("/latest", workInProcess).Methods("GET").Name("latest")
 	router.HandleFunc("/count", workInProcess).Methods("GET").Name("count")
 	router.HandleFunc("/count", wrap(isso.CountComment())).Methods("POST").Name("counts")
+
 	router.HandleFunc("/js/embed.min.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		http.ServeFile(w, r, "./static/js/embed.min.js")

@@ -30,13 +30,39 @@ type submittedComment struct {
 	Title string `json:"title" validate:"omitempty"`
 }
 
-// Hash use provited hash worker to hash itself
-func (c Comment) Hash(worker interface{Hash(string) string}) string {
-	var s string
+type reply struct {
+	Comment
+	Hash          string   `json:"hash"`
+	HiddenReplies *int64   `json:"hidden_replies,omitempty"`
+	TotalReplies  *int64   `json:"total_replies,omitempty"`
+	Replies       *[]reply `json:"replies,omitempty"`
+}
+
+// Convert remove email from comment, and markdownify if not `plain`
+// if markdown convert failed, c.Text will be origin text. but return error is not nil
+func (c Comment) convert(plain bool, hash interface{ Hash(string) string }, markdown interface {
+	Convert(source string) (string, error)
+}) (reply, error) {
+
+	// hash comment
+	var hashresult string
 	if c.Email != nil {
-		s = *c.Email
+		hashresult = hash.Hash(*c.Email)
 	} else {
-		s = c.RemoteAddr
+		hashresult = hash.Hash(c.RemoteAddr)
 	}
-	return worker.Hash(s)
+
+	// remove email
+	c.Email = nil
+
+	// markdowify
+	if plain {
+		return reply{c, hashresult, nil, nil, nil}, nil
+	}
+	text, err := markdown.Convert(c.Text)
+	if err != nil {
+		return reply{c, hashresult, nil, nil, nil}, err
+	}
+	c.Text = text
+	return reply{c, hashresult, nil, nil, nil}, nil
 }
