@@ -271,3 +271,12 @@ func (isso *ISSO) ViewComment() func(rb response.Builder, req *http.Request) {
 		return
 	}
 }
+
+// EditComment edit an existing comment. 
+// Editing a comment is only possible for a short period of time after it was created and only if the requestor has a valid cookie for it. 
+// Editing a comment will set a new edit cookie in the response.
+func (isso *ISSO) EditComment() func(rb response.Builder, req *http.Request)  {
+	return func(rb response.Builder, req *http.Request) {
+		
+	}
+}
