@@ -3,6 +3,7 @@ package isso
 import (
 	"github.com/gorilla/securecookie"
 	"wrong.wang/x/go-isso/config"
+	"wrong.wang/x/go-isso/event"
 	"wrong.wang/x/go-isso/logger"
 	"wrong.wang/x/go-isso/tool/hash"
 	"wrong.wang/x/go-isso/tool/markdown"
@@ -16,9 +17,10 @@ type ISSO struct {
 }
 
 type tools struct {
-	securecookie   *securecookie.SecureCookie
-	hash *hash.Worker
-	markdown *markdown.Worker
+	securecookie *securecookie.SecureCookie
+	hash         *hash.Worker
+	markdown     *markdown.Worker
+	event        *event.Bus
 }
 
 // New a ISSO instance
@@ -46,8 +48,9 @@ func New(cfg config.Config, storage Storage) *ISSO {
 		tools: tools{
 			securecookie: securecookie.New([]byte(HashKey), []byte(BlockKey)),
 			// TODO: use conf to special hash
-			hash: hash.New("pbkdf2:1000:6:sha1", "Eech7co8Ohloopo9Ol6baimi"),
+			hash:     hash.New("pbkdf2:1000:6:sha1", "Eech7co8Ohloopo9Ol6baimi"),
 			markdown: markdown.New(),
+			event:    event.New(),
 		},
 		storage: storage,
 	}
