@@ -1,6 +1,6 @@
 **This is still a work in progress**
 
-New develop take place in branch `construction`.
+New develop take place in branch `dev`.
 
 If you want to develop `go-isso`, fell free to [contact](https://wrong.wang/about/) me.
 
@@ -74,7 +74,7 @@ If you want to develop `go-isso`, fell free to [contact](https://wrong.wang/abou
 
 ## Authors
 
-* **Ray Wong** - *Initial work* - [LowEntropy](https://wrong.wang/about/)
+* **Ray Wong** - *Initial work* - [wrong.wang](https://wrong.wang/about/)
 
 ## Thanks
 
