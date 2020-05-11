@@ -69,7 +69,7 @@ func (d *Database) GetComment(ctx context.Context, id int64) (isso.Comment, erro
 	logger.Debug("database: get comment %d", id)
 	nc, err := d.getComment(ctx, id)
 	if err != nil {
-		return isso.Comment{}, fmt.Errorf("GetComment: failed %w", err)
+		return isso.Comment{}, wraperror(err)
 	}
 	return nc.ToComment(), nil
 }

@@ -258,7 +258,9 @@ func (isso *ISSO) ViewComment() func(rb response.Builder, req *http.Request) {
 
 		comment, err := isso.storage.GetComment(req.Context(), id)
 		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
+			if errors.Is(err, ErrStorageNotFound) {
+				logger.Debug("%+v", err)
+				logger.Debug("%s", err)
 				json.NotFound(rb)
 				return
 			}

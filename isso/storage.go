@@ -1,6 +1,9 @@
 package isso
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 // Storage handles all operations related to the database.
 type Storage interface {
@@ -8,6 +11,12 @@ type Storage interface {
 	CommentStorage
 	PreferenceStorage
 }
+
+// predictable error
+var (
+	// ErrStorageNotFound is returned by Storage when no result can be found
+	ErrStorageNotFound = errors.New("no result found in storage")
+)
 
 // ThreadStorage handles all operations related to Thread and the database.
 type ThreadStorage interface {

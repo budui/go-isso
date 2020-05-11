@@ -4,6 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"io"
+	"path"
+	"runtime"
+	"strings"
 	"time"
 
 	// sqlite3 driver
@@ -11,6 +16,7 @@ import (
 	"gopkg.in/guregu/null.v4"
 	"wrong.wang/x/go-isso/isso"
 	"wrong.wang/x/go-isso/logger"
+	"wrong.wang/x/go-isso/version"
 )
 
 // Database handles all operations related to the database.
@@ -22,6 +28,56 @@ type Database struct {
 
 // ErrNotExpectRow is returned by database method when affected row is not equal as expect.
 var ErrNotExpectRow = errors.New("database: affected row is not equal as expect")
+
+type databaseError struct {
+	caller string
+	file   string
+	line   int
+	origin error
+}
+
+func (de databaseError) Error() string {
+	return fmt.Sprintf("%s: %v", de.caller, de.origin)
+}
+
+// Format formats the error according to the fmt.Formatter interface.
+func (de databaseError) Format(s fmt.State, verb rune) {
+	switch verb {
+	case 's', 'v':
+		switch {
+		case s.Flag('+'):
+			io.WriteString(s, fmt.Sprintf("'%s:%d %s' %v", path.Base(de.file), de.line, de.caller, de.origin))
+		default:
+			io.WriteString(s, de.Error())
+		}
+	}
+}
+
+func (de databaseError) Unwrap() error {
+	return de.origin
+}
+
+func wraperror(err error) databaseError {
+	if err == sql.ErrNoRows {
+		err = isso.ErrStorageNotFound
+	}
+
+	var caller string
+	pc, file, line, ok := runtime.Caller(1)
+	if !ok {
+		caller = "unkown"
+	} else {
+		fn := runtime.FuncForPC(pc)
+		caller = fn.Name()
+	}
+
+	return databaseError{
+		origin: err,
+		caller: strings.TrimPrefix(caller, version.Mod),
+		file:   file,
+		line:   line,
+	}
+}
 
 // New return a *Database
 func New(path string, timeout time.Duration) (*Database, error) {
