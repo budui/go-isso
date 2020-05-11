@@ -3,6 +3,7 @@ package server
 import (
 	"compress/flate"
 	"compress/gzip"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -93,9 +94,13 @@ func (b *builder) Write() {
 
 	if b.statusCode >= 400 || b.err != nil {
 		if b.err != nil {
-			logger.Error("[HTTP:%s] %s => %v", http.StatusText(b.statusCode), b.r.URL, b.err)
+			err := errors.Unwrap(b.err)
+			if err == nil {
+				err = b.err
+			}
+			logger.Error("%d %s => %v", b.statusCode, b.r.URL, err)
 		} else {
-			logger.Error("[HTTP:%s] %s", http.StatusText(b.statusCode), b.r.URL)
+			logger.Error("%d %s", b.statusCode, b.r.URL)
 		}
 	}
 

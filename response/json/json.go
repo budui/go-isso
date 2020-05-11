@@ -10,8 +10,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"wrong.wang/x/go-isso/response"
 	"wrong.wang/x/go-isso/logger"
+	"wrong.wang/x/go-isso/response"
 )
 
 const contentTypeHeader = `application/json`
@@ -57,18 +57,18 @@ func BadRequest(builder response.Builder, err error) {
 }
 
 // Unauthorized sends a not authorized error to the client.
-func Unauthorized(builder response.Builder) {
-	writeErrorJSON(builder, nil, http.StatusUnauthorized)
+func Unauthorized(builder response.Builder, err error) {
+	writeErrorJSON(builder, err, http.StatusUnauthorized)
 }
 
 // Forbidden sends a forbidden error to the client.
-func Forbidden(builder response.Builder) {
-	writeErrorJSON(builder, nil, http.StatusForbidden)
+func Forbidden(builder response.Builder, err error) {
+	writeErrorJSON(builder, err, http.StatusForbidden)
 }
 
 // NotFound sends a page not found error to the client.
-func NotFound(builder response.Builder) {
-	writeErrorJSON(builder, nil, http.StatusNotFound)
+func NotFound(builder response.Builder, err error) {
+	writeErrorJSON(builder, err, http.StatusNotFound)
 }
 
 func toJSON(v interface{}) []byte {

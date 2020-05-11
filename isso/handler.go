@@ -221,7 +221,7 @@ func (isso *ISSO) CountComment() func(rb response.Builder, req *http.Request) {
 		uris := []string{}
 		err := jsonBind(req.Body, &uris)
 		if err != nil {
-			json.BadRequest(rb, err)
+			json.BadRequest(rb, newHandlerError(err, "invalid post data"))
 			return
 		}
 		counts := []int64{}
@@ -231,7 +231,7 @@ func (isso *ISSO) CountComment() func(rb response.Builder, req *http.Request) {
 		}
 		countsByURI, err := isso.storage.CountComment(req.Context(), uris)
 		if err != nil {
-			json.ServerError(rb, err)
+			json.ServerError(rb, newHandlerError(err, ""))
 			return
 		}
 		for _, i := range countsByURI {
@@ -247,7 +247,7 @@ func (isso *ISSO) ViewComment() func(rb response.Builder, req *http.Request) {
 	return func(rb response.Builder, req *http.Request) {
 		id, err := strconv.ParseInt(mux.Vars(req)["id"], 10, 64)
 		if err != nil {
-			json.BadRequest(rb, fmt.Errorf("invalid id %w", err))
+			json.BadRequest(rb, newHandlerError(err, fmt.Sprintf("invalid comment id %s", mux.Vars(req)["id"])))
 			return
 		}
 
@@ -259,12 +259,10 @@ func (isso *ISSO) ViewComment() func(rb response.Builder, req *http.Request) {
 		comment, err := isso.storage.GetComment(req.Context(), id)
 		if err != nil {
 			if errors.Is(err, ErrStorageNotFound) {
-				logger.Debug("%+v", err)
-				logger.Debug("%s", err)
-				json.NotFound(rb)
+				json.NotFound(rb, newHandlerError(err, fmt.Sprintf("can not found comment %d", id)))
 				return
 			}
-			json.ServerError(rb, fmt.Errorf("get comment failed %w", err))
+			json.ServerError(rb, newHandlerError(err, descStorageUnhandledError))
 			return
 		}
 
@@ -274,11 +272,11 @@ func (isso *ISSO) ViewComment() func(rb response.Builder, req *http.Request) {
 	}
 }
 
-// EditComment edit an existing comment. 
-// Editing a comment is only possible for a short period of time after it was created and only if the requestor has a valid cookie for it. 
+// EditComment edit an existing comment.
+// Editing a comment is only possible for a short period of time after it was created and only if the requestor has a valid cookie for it.
 // Editing a comment will set a new edit cookie in the response.
-func (isso *ISSO) EditComment() func(rb response.Builder, req *http.Request)  {
+func (isso *ISSO) EditComment() func(rb response.Builder, req *http.Request) {
 	return func(rb response.Builder, req *http.Request) {
-		
+
 	}
 }
