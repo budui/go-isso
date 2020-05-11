@@ -20,7 +20,7 @@ func (d *Database) GetThreadByURI(ctx context.Context, uri string) (isso.Thread,
 	defer cancel()
 	err := d.DB.QueryRowContext(ctx, d.statement["thread_get_by_uri"], uri).Scan(&thread.ID, &thread.URI, &thread.Title)
 	if err != nil {
-		return thread, fmt.Errorf("GetThreadByURI failed. %w", err)
+		return thread, wraperror(err)
 	}
 	return thread, nil
 }
@@ -33,7 +33,7 @@ func (d *Database) GetThreadByID(ctx context.Context, id int64) (isso.Thread, er
 	defer cancel()
 	err := d.DB.QueryRowContext(ctx, d.statement["thread_get_by_id"], id).Scan(&thread.ID, &thread.URI, &thread.Title)
 	if err != nil {
-		return thread, fmt.Errorf("GetThreadByURI failed. %w", err)
+		return thread, wraperror(err)
 	}
 	return thread, nil
 }
@@ -51,31 +51,31 @@ func (d *Database) NewThread(ctx context.Context, uri string, title string, Host
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
-			return isso.Thread{}, fmt.Errorf("NewThread: get title failed. failed to load page %s, %w", url, err)
+			return isso.Thread{}, wraperror(fmt.Errorf("get title failed: %s, %w", url, err))
 		}
 		client := &http.Client{}
 		resp, err := client.Do(req)
 
 		if err != nil {
-			return isso.Thread{}, fmt.Errorf("NewThread: get title failed. failed to load page %s, %w", url, err)
+			return isso.Thread{}, wraperror(fmt.Errorf("get title failed: %s, %w", url, err))
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
-			return isso.Thread{}, fmt.Errorf("NewThread: get title failed. can't load page %s, code %d", url, resp.StatusCode)
+			return isso.Thread{}, wraperror(fmt.Errorf("get title failed: %s, %d", url, resp.StatusCode))
 		}
 		title, uri, err = extract.TitleAndThreadURI(resp.Body, "Untitled", uri)
 		if err != nil {
-			return isso.Thread{}, fmt.Errorf("NewThread: get title failed. can't extract title, %w", err)
+			return isso.Thread{}, wraperror(fmt.Errorf("get title failed: %s, %w", url, err))
 		}
 	}
 
 	result, err := d.DB.ExecContext(ctx, d.statement["thread_new"], uri, title)
 	if err != nil {
-		return isso.Thread{}, fmt.Errorf("NewThread failed. %w", err)
+		return isso.Thread{}, wraperror(err)
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		return isso.Thread{}, fmt.Errorf("NewThread failed. %w", err)
+		return isso.Thread{}, wraperror(err)
 	}
 	return isso.Thread{ID: id, URI: uri, Title: title}, nil
 }

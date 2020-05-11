@@ -33,12 +33,12 @@ func (d *Database) NewComment(ctx context.Context, c isso.Comment, threadID int6
 		parent, err := d.getComment(ctx, *c.Parent)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return isso.Comment{}, errors.New("NewComment: can't find specify parent")
+				return isso.Comment{}, wraperror(err)
 			}
-			return isso.Comment{}, errors.New("NewComment: find specify parent failed")
+			return isso.Comment{}, wraperror(err)
 		}
 		if parent.TID != threadID {
-			return isso.Comment{}, errors.New("NewComment: not same tid with parent's tid")
+			return isso.Comment{}, wraperror(err)
 		}
 		if parent.Parent.Valid {
 			c.Parent = &parent.Parent.Int64
@@ -51,15 +51,15 @@ func (d *Database) NewComment(ctx context.Context, c isso.Comment, threadID int6
 		nc.Modified, nc.Mode, nc.RemoteAddr, nc.Text, nc.Author, nc.Email, nc.Website, nc.Voters, nc.Notification,
 	)
 	if err != nil {
-		return isso.Comment{}, fmt.Errorf("NewComment: insert failed - %w", err)
+		return isso.Comment{}, wraperror(err)
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		return isso.Comment{}, fmt.Errorf("NewComment: insert failed - %w", err)
+		return isso.Comment{}, wraperror(err)
 	}
 	comment, err := d.GetComment(ctx, id)
 	if err != nil {
-		return isso.Comment{}, fmt.Errorf("NewComment: insert failed - %w", err)
+		return isso.Comment{}, wraperror(err)
 	}
 	return comment, nil
 }
@@ -101,7 +101,7 @@ func (d *Database) CountReply(ctx context.Context, uri string, mode int, after f
 
 	rows, err := d.DB.QueryContext(ctx, d.statement["comment_count_reply"], uri, mode, mode, after)
 	if err != nil {
-		return nil, fmt.Errorf("CountReplyPerComment failed %w", err)
+		return nil, wraperror(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -109,7 +109,7 @@ func (d *Database) CountReply(ctx context.Context, uri string, mode int, after f
 		var c int64
 		err := rows.Scan(&p, &c)
 		if err != nil {
-			return nil, fmt.Errorf("CountReplyPerComment failed %w", err)
+			return nil, wraperror(err)
 		}
 		if p.Valid {
 			counts[p.Int64] = c
@@ -118,7 +118,7 @@ func (d *Database) CountReply(ctx context.Context, uri string, mode int, after f
 		}
 	}
 	if rows.Err() != nil {
-		return nil, fmt.Errorf("CountReplyPerComment failed %w", err)
+		return nil, wraperror(err)
 	}
 	return counts, nil
 }
@@ -158,7 +158,7 @@ func (d *Database) FetchCommentsByURI(ctx context.Context, uri string, parent in
 
 	defer rows.Close()
 	if err != nil {
-		return nil, fmt.Errorf("FetchCommentsByURI failed %w", err)
+		return nil, wraperror(err)
 	}
 
 	commentsbyparent := map[int64][]isso.Comment{}
@@ -172,7 +172,7 @@ func (d *Database) FetchCommentsByURI(ctx context.Context, uri string, parent in
 			&nc.Dislikes, &nc.Voters, &nc.Notification,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("FetchCommentsByURI failed %w", err)
+			return nil, wraperror(err)
 		}
 		if nc.Parent.Valid {
 			commentsbyparent[nc.Parent.Int64] = append(commentsbyparent[nc.Parent.Int64], nc.ToComment())
@@ -182,7 +182,7 @@ func (d *Database) FetchCommentsByURI(ctx context.Context, uri string, parent in
 	}
 	err = rows.Err()
 	if err != nil {
-		return nil, fmt.Errorf("FetchCommentsByURI failed %w", err)
+		return nil, wraperror(err)
 	}
 	return commentsbyparent, nil
 }
@@ -199,7 +199,7 @@ func (d *Database) CountComment(ctx context.Context, uris []string) (map[string]
 	defer rows.Close()
 
 	if err != nil {
-		return nil, fmt.Errorf("CountComment failed %w", err)
+		return nil, wraperror(err)
 	}
 
 	for rows.Next() {
@@ -207,14 +207,14 @@ func (d *Database) CountComment(ctx context.Context, uris []string) (map[string]
 		var count int64
 		err := rows.Scan(&uri, &count)
 		if err != nil {
-			return nil, fmt.Errorf("CountComment failed %w", err)
+			return nil, wraperror(err)
 		}
 		commentByURI[uri] = count
 	}
 
 	err = rows.Err()
 	if err != nil {
-		return nil, fmt.Errorf("CountComment failed %w", err)
+		return nil, wraperror(err)
 	}
 
 	uriMap := map[string]int64{}
