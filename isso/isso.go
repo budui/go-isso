@@ -9,6 +9,10 @@ import (
 	"wrong.wang/x/go-isso/tool/markdown"
 )
 
+const descStorageNotFound = "no result found in storage"
+const descStorageUnhandledError = "storage raise unhandled error"
+const descRequestInvalidParm = "can not parse parameters correctly"
+
 // ISSO do the main logical staff
 type ISSO struct {
 	storage Storage
