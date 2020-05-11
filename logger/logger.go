@@ -10,11 +10,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"strings"
 	"time"
+
+	"wrong.wang/x/go-isso/version"
 )
 
 var requestedLevel = InfoLevel
 var displayDateTime = false
+var displayRuntime = false
 
 // LogLevel type.
 type LogLevel uint32
@@ -55,9 +60,15 @@ func EnableDateTime() {
 	displayDateTime = true
 }
 
+// SetRuntime enables func name, line in log messages.
+func SetRuntime(ok bool) {
+	displayRuntime = ok
+}
+
 // EnableDebug increases logging, more verbose (debug)
 func EnableDebug() {
 	requestedLevel = DebugLevel
+	SetRuntime(true)
 	formatMessage(InfoLevel, "Debug mode enabled")
 }
 
@@ -95,13 +106,30 @@ func SetOutput(w io.Writer) {
 	outputWriter = w
 }
 
+// funcname removes the path prefix component of a function's name reported by func.Name().
+func funcname(name string) string {
+	return strings.TrimPrefix(name, version.Mod)
+}
+
 func formatMessage(level LogLevel, format string, v ...interface{}) {
 	var prefix string
+	var caller string
 
 	if displayDateTime {
-		prefix = fmt.Sprintf("[%s] [%s] ", time.Now().Format("2006-01-02T15:04:05"), level)
-	} else {
-		prefix = fmt.Sprintf("[%s] ", level)
+		prefix = fmt.Sprintf("[%s]", time.Now().Format("2006-01-02T15:04:05"))
+	}
+
+	prefix += fmt.Sprintf(" [%s]", level)
+
+	if displayRuntime {
+		pc, _, _, ok := runtime.Caller(2)
+		if !ok {
+			caller = "unkown"
+		} else {
+			fn := runtime.FuncForPC(pc)
+			caller = fn.Name()
+		}
+		prefix += fmt.Sprintf(" %s - ", funcname(caller))
 	}
 
 	fmt.Fprintf(outputWriter, prefix+format+"\n", v...)
