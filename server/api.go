@@ -19,10 +19,10 @@ func registerRoute(router *mux.Router, isso *isso.ISSO) {
 	// single comment
 	router.HandleFunc("/new", isso.CreateComment()).Queries("uri", "{uri}").Methods("POST").Name("new")
 	router.HandleFunc("/id/{id:[0-9]+}", isso.ViewComment()).Methods("GET").Name("view")
-	router.HandleFunc("/id/{id:[0-9]+}", workInProcess).Methods("PUT").Name("edit")
-	router.HandleFunc("/id/{id:[0-9]+}", workInProcess).Methods("DELETE").Name("delete")
-	router.HandleFunc("/id/{id:[0-9]+}/like", workInProcess).Methods("POST").Name("like")
-	router.HandleFunc("/id/{id:[0-9]+}/dislike", workInProcess).Methods("POST").Name("dislike")
+	router.HandleFunc("/id/{id:[0-9]+}", isso.EditComment()).Methods("PUT").Name("edit")
+	router.HandleFunc("/id/{id:[0-9]+}", isso.DeleteComment()).Methods("DELETE").Name("delete")
+	router.HandleFunc("/id/{id:[0-9]+}/{vote:[like|dislike]}", isso.VoteComment()).Methods("POST").Name("vote")
+	
 	router.HandleFunc("/id/{id:[0-9]+}/{action:[edit|activate|delete]}/{key}", workInProcess).
 		Methods("GET").Name("moderate_get")
 	router.HandleFunc("/id/{id:[0-9]+}/{action:[edit|activate|delete]}>/{key}", workInProcess).

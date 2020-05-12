@@ -276,7 +276,21 @@ func (isso *ISSO) ViewComment() http.HandlerFunc {
 // Editing a comment is only possible for a short period of time after it was created and only if the requestor has a valid cookie for it.
 // Editing a comment will set a new edit cookie in the response.
 func (isso *ISSO) EditComment() http.HandlerFunc {
-	return func(w http.ResponseWriter, req *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
+// VoteComment used to like or dislike comment
+func (isso *ISSO) VoteComment() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+	}
+}
+
+// DeleteComment delete a comment
+func (isso *ISSO) DeleteComment() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 
 	}
 }
