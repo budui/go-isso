@@ -1,6 +1,8 @@
 package isso
 
 import (
+	"context"
+
 	"github.com/gorilla/securecookie"
 	"wrong.wang/x/go-isso/config"
 	"wrong.wang/x/go-isso/event"
@@ -12,6 +14,20 @@ import (
 const descStorageNotFound = "no result found in storage"
 const descStorageUnhandledError = "storage raise unhandled error"
 const descRequestInvalidParm = "can not parse parameters correctly"
+
+type issoContextKey int
+
+// ISSOContextKey can be used as key for context
+var ISSOContextKey issoContextKey = 1
+
+// RequestIDFromContext return request id from Context
+func RequestIDFromContext(ctx context.Context) string {
+	requestID, ok := ctx.Value(ISSOContextKey).(string)
+	if !ok {
+		requestID = "unknown"
+	}
+	return requestID
+}
 
 // ISSO do the main logical staff
 type ISSO struct {
