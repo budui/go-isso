@@ -59,6 +59,8 @@ var (
 			threads.uri=? AND comments.tid=threads.id AND (? | comments.mode) = ?`,
 		"comment_count": `SELECT threads.uri, COUNT(comments.id) FROM comments LEFT OUTER JOIN 
 		threads ON threads.id = tid AND comments.mode = 1 GROUP BY threads.uri`,
+		"comment_activate": `UPDATE comments SET mode=1 WHERE id=$1 AND mode=2;`,
+		"comment_unsubscribe": `UPDATE comments SET notification=0 WHERE email=$1 AND (id=$2 OR parent=$2);`,
 	}
 )
 

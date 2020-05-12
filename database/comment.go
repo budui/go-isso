@@ -224,3 +224,23 @@ func (d *Database) CountComment(ctx context.Context, uris []string) (map[string]
 	}
 	return uriMap, nil
 }
+
+// ActivateComment Activate comment id if pending
+func (d *Database) ActivateComment(ctx context.Context, id int64) error {
+	ctx, cancel := d.withTimeout(ctx)
+	defer cancel()
+	logger.Debug("id: %d", id)
+
+	result, err := d.DB.ExecContext(ctx, d.statement["comment_activate"], id)
+	if err != nil {
+		return wraperror(err)
+	}
+	row, err := result.RowsAffected()
+	if err != nil {
+		return wraperror(err)
+	}
+	if row != 1 {
+		return wraperror(isso.ErrNotExpectAmount)
+	}
+	return nil
+}

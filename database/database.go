@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -25,9 +24,6 @@ type Database struct {
 	statement map[string]string
 	timeout   time.Duration
 }
-
-// ErrNotExpectRow is returned by database method when affected row is not equal as expect.
-var ErrNotExpectRow = errors.New("database: affected row is not equal as expect")
 
 type databaseError struct {
 	caller string

@@ -1,6 +1,9 @@
 package database
 
-import "wrong.wang/x/go-isso/logger"
+import (
+	"wrong.wang/x/go-isso/isso"
+	"wrong.wang/x/go-isso/logger"
+)
 
 // GetPreference get preference use key
 func (d *Database) GetPreference(key string) (string, error) {
@@ -25,7 +28,7 @@ func (d *Database) SetPreference(key string, value string) error {
 		return wraperror(err)
 	}
 	if row != 1 {
-		return wraperror(ErrNotExpectRow)
+		return wraperror(isso.ErrNotExpectAmount)
 	}
 	return nil
 }

@@ -8,7 +8,9 @@ import (
 // predictable error
 var (
 	// ErrStorageNotFound is returned by Storage when no result can be found
-	ErrStorageNotFound = errors.New("no result found in storage")
+	ErrStorageNotFound = errors.New("storage: no result found")
+	// ErrNotExpectAmount is returned by databStoragease method when affected amount is not equal as expect.
+    ErrNotExpectAmount = errors.New("storage: affected amount is not equal as expect")
 )
 
 // mode for comment's mode. comment mode CAN NOT be set to modePublic.
