@@ -1,6 +1,8 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"os"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/sony/sonyflake"
 	"wrong.wang/x/go-isso/config"
 	"wrong.wang/x/go-isso/database"
 	"wrong.wang/x/go-isso/isso"
@@ -93,5 +96,32 @@ func setupHandler(cfg config.Config) http.Handler {
 		Debug:            false,
 	})
 
-	return c.Handler(router)
+	return setRequestID(sonyflakeRequestID())(c.Handler(router))
+}
+
+func setRequestID(nextRequestID func() string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestID := r.Header.Get("X-Request-Id")
+			if requestID == "" {
+				requestID = nextRequestID()
+			}
+			ctx := context.WithValue(r.Context(), isso.ISSOContextKey, requestID)
+			w.Header().Set("X-Request-Id", requestID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func sonyflakeRequestID() func() string {
+	sf := sonyflake.NewSonyflake(sonyflake.Settings{})
+	return func() string {
+		v, err := sf.NextID()
+		if err != nil {
+			// NextID can continue to generate IDs for about 174 years from StartTime.
+			// But after the Sonyflake time is over the limit, NextID returns an error.
+			return "174 years later"
+		}
+		return fmt.Sprintf("%X", v)
+	}
 }
