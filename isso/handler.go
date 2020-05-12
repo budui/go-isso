@@ -36,7 +36,6 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 			json.BadRequest(requestID, w, err, fmt.Sprintf("comment validate failed: %s", err.Error()))
 			return
 		}
-		pretty.Println(comment)
 
 		var thread Thread
 		thread, err = isso.storage.GetThreadByURI(r.Context(), comment.URI)
@@ -59,12 +58,12 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 			if isso.config.Moderation.ApproveAcquaintance &&
 				comment.Email != nil &&
 				isso.storage.IsApprovedAuthor(r.Context(), *comment.Email) {
-				comment.Mode = 1
+				comment.Mode = ModePublic
 			} else {
-				comment.Mode = 2
+				comment.Mode = ModeAccepted
 			}
 		} else {
-			comment.Mode = 1
+			comment.Mode = ModePublic
 		}
 
 		c, err := isso.storage.NewComment(r.Context(), comment.Comment, thread.ID, comment.RemoteAddr)
@@ -97,7 +96,7 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 			}
 		}
 
-		if c.Mode == 2 {
+		if c.Mode == ModeAccepted {
 			json.Accepted(w, c)
 		} else {
 			json.Created(w, c)
@@ -152,7 +151,7 @@ func (isso *ISSO) FetchComments() http.HandlerFunc {
 			plain = true
 		}
 
-		replyCount, err := isso.storage.CountReply(r.Context(), mux.Vars(r)["uri"], 5, urlparm.After)
+		replyCount, err := isso.storage.CountReply(r.Context(), mux.Vars(r)["uri"], ModePublic, urlparm.After)
 		if err != nil {
 			json.ServerError(requestID, w, err, descStorageUnhandledError)
 			return
@@ -162,7 +161,7 @@ func (isso *ISSO) FetchComments() http.HandlerFunc {
 			replyCount[parent] = 0
 		}
 
-		commentsByParent, err := isso.storage.FetchCommentsByURI(r.Context(), mux.Vars(r)["uri"], parent, 5, "id", true)
+		commentsByParent, err := isso.storage.FetchCommentsByURI(r.Context(), mux.Vars(r)["uri"], parent, ModePublic, "id", true)
 		if err != nil {
 			json.ServerError(requestID, w, err, descStorageUnhandledError)
 			return

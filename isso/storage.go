@@ -5,18 +5,37 @@ import (
 	"errors"
 )
 
+// predictable error
+var (
+	// ErrStorageNotFound is returned by Storage when no result can be found
+	ErrStorageNotFound = errors.New("no result found in storage")
+)
+
+// mode for comment's mode. comment mode CAN NOT be set to modePublic.
+const (
+	//modeAccepted means The comment was accepted by the server and is published.
+	// 001
+	ModeAccepted = 1
+	//modeModeration means: The comment was accepted by the server but awaits moderation.
+	// 010
+	ModeModeration = 2
+	//modeDeleted means deleted, but referenced: The comment was deleted on the server but is still referenced by replies.
+	// 100
+	ModeDeleted = 4
+	//modePublic means The comment is public. its replies can be counted and show.
+	// 101
+	//modePublic include modeAccepted, modeDeleted
+	//modePublic CAN NOT be used by comment.
+	//It is the shortcut for select comments who are in modeAccepted or modeDeleted.
+	ModePublic = 5
+)
+
 // Storage handles all operations related to the database.
 type Storage interface {
 	ThreadStorage
 	CommentStorage
 	PreferenceStorage
 }
-
-// predictable error
-var (
-	// ErrStorageNotFound is returned by Storage when no result can be found
-	ErrStorageNotFound = errors.New("no result found in storage")
-)
 
 // ThreadStorage handles all operations related to Thread and the database.
 type ThreadStorage interface {
