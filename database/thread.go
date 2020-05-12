@@ -14,7 +14,7 @@ import (
 
 // GetThreadByURI get thread by uri
 func (d *Database) GetThreadByURI(ctx context.Context, uri string) (isso.Thread, error) {
-	logger.Debug("database: get thread by %s", uri)
+	logger.Debug("uri %s", uri)
 	var thread isso.Thread
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
@@ -27,7 +27,7 @@ func (d *Database) GetThreadByURI(ctx context.Context, uri string) (isso.Thread,
 
 // GetThreadByID get thread by id
 func (d *Database) GetThreadByID(ctx context.Context, id int64) (isso.Thread, error) {
-	logger.Debug("database: get thread by %d", id)
+	logger.Debug("id %d", id)
 	var thread isso.Thread
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
@@ -40,7 +40,7 @@ func (d *Database) GetThreadByID(ctx context.Context, id int64) (isso.Thread, er
 
 // NewThread new a thread
 func (d *Database) NewThread(ctx context.Context, uri string, title string, Host string) (isso.Thread, error) {
-	logger.Debug("database: create thread %s host: %s", uri, Host)
+	logger.Debug("create thread %s host: %s", uri, Host)
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
 

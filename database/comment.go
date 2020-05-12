@@ -13,7 +13,7 @@ import (
 
 // IsApprovedAuthor check if email has approved in 6 month
 func (d *Database) IsApprovedAuthor(ctx context.Context, email string) bool {
-	logger.Debug("database: check email %s", email)
+	logger.Debug("email %s", email)
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
 	if email == "" {
@@ -28,7 +28,7 @@ func (d *Database) IsApprovedAuthor(ctx context.Context, email string) bool {
 func (d *Database) NewComment(ctx context.Context, c isso.Comment, threadID int64, remoteAddr string) (isso.Comment, error) {
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
-	logger.Debug("database: create comment at %d", threadID)
+	logger.Debug("create %s 's comment at %d", c.Author, threadID)
 	if c.Parent != nil {
 		parent, err := d.getComment(ctx, *c.Parent)
 		if err != nil {
@@ -66,7 +66,7 @@ func (d *Database) NewComment(ctx context.Context, c isso.Comment, threadID int6
 
 // GetComment get comment by ID
 func (d *Database) GetComment(ctx context.Context, id int64) (isso.Comment, error) {
-	logger.Debug("database: get comment %d", id)
+	logger.Debug("get comment %d", id)
 	nc, err := d.getComment(ctx, id)
 	if err != nil {
 		return isso.Comment{}, wraperror(err)
@@ -93,7 +93,7 @@ func (d *Database) getComment(ctx context.Context, id int64) (nullComment, error
 // CountReply return comment count for main thread's comment and all reply threads for one uri.
 // 0 mean null parent
 func (d *Database) CountReply(ctx context.Context, uri string, mode int, after float64) (map[int64]int64, error) {
-	logger.Debug("database: CountReplyPerComment [%s]", uri)
+	logger.Debug("uri: %s", uri)
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
 
@@ -125,7 +125,7 @@ func (d *Database) CountReply(ctx context.Context, uri string, mode int, after f
 
 // FetchCommentsByURI fetch comments related uri with a lot of param
 func (d *Database) FetchCommentsByURI(ctx context.Context, uri string, parent int64, mode int, orderBy string, asc bool) (map[int64][]isso.Comment, error) {
-	logger.Debug("database: FetchComments %s", uri)
+	logger.Debug("uri: %s", uri)
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
 
@@ -191,6 +191,7 @@ func (d *Database) FetchCommentsByURI(ctx context.Context, uri string, parent in
 func (d *Database) CountComment(ctx context.Context, uris []string) (map[string]int64, error) {
 	ctx, cancel := d.withTimeout(ctx)
 	defer cancel()
+	logger.Debug("uris: %v", uris)
 	commentByURI := map[string]int64{}
 	if len(uris) == 0 {
 		return commentByURI, nil
