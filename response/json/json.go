@@ -1,82 +1,84 @@
-// Copyright 2018 Frédéric Guillot. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
-
-// @budui copy from "miniflux.app/http/response/json", may be modified later.
-
 package json
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"runtime"
+	"strings"
 
 	"wrong.wang/x/go-isso/logger"
-	"wrong.wang/x/go-isso/response"
+	"wrong.wang/x/go-isso/version"
 )
 
 const contentTypeHeader = `application/json`
 
-func writeJSON(builder response.Builder, body interface{}, status int) {
-	builder.WithHeader("Content-Type", contentTypeHeader)
-	builder.WithStatus(status)
-	builder.WithBody(toJSON(body))
-	builder.Write()
+func writeJSON(w http.ResponseWriter, body interface{}, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	encoder := json.NewEncoder(w)
+	_ = encoder.Encode(body)
 }
 
-func writeErrorJSON(builder response.Builder, err error, status int) {
-	if err != nil {
-		builder.WithError(err)
-		writeJSON(builder, map[string]string{"error": err.Error()}, status)
+func writeErrorJSON(w http.ResponseWriter, err error, requestID string, desc string, status int) {
+	var caller string
+	pc, _, _, ok := runtime.Caller(2)
+	if !ok {
+		caller = "unkown"
+	} else {
+		fn := runtime.FuncForPC(pc)
+		caller = strings.TrimPrefix(fn.Name(), version.Mod)
 	}
-	writeJSON(builder, map[string]string{"error": http.StatusText(status)}, status)
+
+	errstr := fmt.Sprintf("[%s] %s - %s", requestID, caller, desc)
+	if err != nil {
+		errstr = fmt.Sprintf("%s\n\t%v", errstr, err)
+	}
+	logger.Error("%s", errstr)
+
+	reason := desc
+	if reason == "" {
+		reason = http.StatusText(status)
+	}
+	writeJSON(w, map[string]string{"error": reason}, status)
 }
 
 // OK creates a new JSON response with a 200 status code.
-func OK(builder response.Builder, body interface{}) {
-	writeJSON(builder, body, http.StatusOK)
+func OK(w http.ResponseWriter, body interface{}) {
+	writeJSON(w, body, http.StatusOK)
 }
 
 // Created sends a created response to the client.
-func Created(builder response.Builder, body interface{}) {
-	writeJSON(builder, body, http.StatusCreated)
+func Created(w http.ResponseWriter, body interface{}) {
+	writeJSON(w, body, http.StatusCreated)
 }
 
 // Accepted sends a created response to the client.
-func Accepted(builder response.Builder, body interface{}) {
-	writeJSON(builder, body, http.StatusAccepted)
+func Accepted(w http.ResponseWriter, body interface{}) {
+	writeJSON(w, body, http.StatusAccepted)
 }
 
 // ServerError sends an internal error to the client.
-func ServerError(builder response.Builder, err error) {
-	writeErrorJSON(builder, err, http.StatusInternalServerError)
+func ServerError(requestID string, w http.ResponseWriter, err error, desc string) {
+	writeErrorJSON(w, err, requestID, desc, http.StatusInternalServerError)
 }
 
 // BadRequest sends a bad request error to the client.
-func BadRequest(builder response.Builder, err error) {
-	writeErrorJSON(builder, err, http.StatusBadRequest)
+func BadRequest(requestID string, w http.ResponseWriter, err error, desc string) {
+	writeErrorJSON(w, err, requestID, desc, http.StatusBadRequest)
 }
 
 // Unauthorized sends a not authorized error to the client.
-func Unauthorized(builder response.Builder, err error) {
-	writeErrorJSON(builder, err, http.StatusUnauthorized)
+func Unauthorized(requestID string, w http.ResponseWriter, err error, desc string) {
+	writeErrorJSON(w, err, requestID, desc, http.StatusUnauthorized)
 }
 
 // Forbidden sends a forbidden error to the client.
-func Forbidden(builder response.Builder, err error) {
-	writeErrorJSON(builder, err, http.StatusForbidden)
+func Forbidden(requestID string, w http.ResponseWriter, err error, desc string) {
+	writeErrorJSON(w, err, requestID, desc, http.StatusForbidden)
 }
 
 // NotFound sends a page not found error to the client.
-func NotFound(builder response.Builder, err error) {
-	writeErrorJSON(builder, err, http.StatusNotFound)
-}
-
-func toJSON(v interface{}) []byte {
-	b, err := json.Marshal(v)
-	if err != nil {
-		logger.Error("[HTTP:JSON] %v", err)
-		return []byte("")
-	}
-
-	return b
+func NotFound(requestID string, w http.ResponseWriter, err error, desc string) {
+	writeErrorJSON(w, err, requestID, desc, http.StatusNotFound)
 }

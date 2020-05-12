@@ -2,7 +2,6 @@ package isso
 
 import (
 	"crypto/sha1"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -12,103 +11,102 @@ import (
 	"github.com/gorilla/schema"
 	"github.com/kr/pretty"
 	"wrong.wang/x/go-isso/logger"
-	"wrong.wang/x/go-isso/response"
 	"wrong.wang/x/go-isso/response/json"
 	"wrong.wang/x/go-isso/tool/validator"
 )
 
 // CreateComment create a new comment
-func (isso *ISSO) CreateComment(rb response.Builder, req *http.Request) {
-	commentWebsite := FindOrigin(req)
-	if commentWebsite == "://" {
-		json.BadRequest(rb, errors.New("can not find origin"))
-		return
-	}
-	var comment submittedComment
-	err := jsonBind(req.Body, &comment)
-	if err != nil {
-		json.BadRequest(rb, err)
-		return
-	}
-	comment.URI = mux.Vars(req)["uri"]
-	comment.RemoteAddr = findClientIP(req)
-
-	if err := validator.Validate(comment); err != nil {
-		json.BadRequest(rb, err)
-		return
-	}
-	pretty.Println(comment)
-
-	var thread Thread
-	thread, err = isso.storage.GetThreadByURI(req.Context(), comment.URI)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// no thread realted to this uri
-			// so create new thread
-			if thread, err = isso.storage.NewThread(req.Context(), comment.URI, comment.Title, commentWebsite); err != nil {
-				json.ServerError(rb, fmt.Errorf("can not create new thread %w", err))
-				return
-			}
-		} else {
-			// can not handled error
-			json.ServerError(rb, fmt.Errorf("can not get thread %w", err))
+func (isso *ISSO) CreateComment() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := RequestIDFromContext(r.Context())
+		commentWebsite := FindOrigin(r)
+		if commentWebsite == "" {
+			json.BadRequest(requestID, w, nil, "can not find header origin")
 			return
 		}
-	}
+		var comment submittedComment
+		err := jsonBind(r.Body, &comment)
+		if err != nil {
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+			return
+		}
+		comment.URI = mux.Vars(r)["uri"]
+		comment.RemoteAddr = findClientIP(r)
+		if err := validator.Validate(comment); err != nil {
+			json.BadRequest(requestID, w, err, fmt.Sprintf("comment validate failed: %s", err.Error()))
+			return
+		}
+		pretty.Println(comment)
 
-	if isso.config.Moderation.Enable {
-		if isso.config.Moderation.ApproveAcquaintance &&
-			comment.Email != nil &&
-			isso.storage.IsApprovedAuthor(req.Context(), *comment.Email) {
-			comment.Mode = 1
+		var thread Thread
+		thread, err = isso.storage.GetThreadByURI(r.Context(), comment.URI)
+		if err != nil {
+			if errors.Is(err, ErrStorageNotFound) {
+				// no thread realted to this uri
+				// so create new thread
+				if thread, err = isso.storage.NewThread(r.Context(), comment.URI, comment.Title, commentWebsite); err != nil {
+					json.ServerError(requestID, w, err, descStorageUnhandledError)
+					return
+				}
+			} else {
+				// can not handled error
+				json.ServerError(requestID, w, err, descStorageUnhandledError)
+				return
+			}
+		}
+
+		if isso.config.Moderation.Enable {
+			if isso.config.Moderation.ApproveAcquaintance &&
+				comment.Email != nil &&
+				isso.storage.IsApprovedAuthor(r.Context(), *comment.Email) {
+				comment.Mode = 1
+			} else {
+				comment.Mode = 2
+			}
 		} else {
-			comment.Mode = 2
+			comment.Mode = 1
 		}
-	} else {
-		comment.Mode = 1
-	}
 
-	c, err := isso.storage.NewComment(req.Context(), comment.Comment, thread.ID, comment.RemoteAddr)
-	if err != nil {
-		json.ServerError(rb, fmt.Errorf("can not create new comment %w", err))
-		return
-	}
+		c, err := isso.storage.NewComment(r.Context(), comment.Comment, thread.ID, comment.RemoteAddr)
+		if err != nil {
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
+			return
+		}
 
-	logger.Debug(fmt.Sprintf("new comment: %# v", pretty.Formatter(c)))
+		logger.Debug(fmt.Sprintf("new comment: %# v", pretty.Formatter(c)))
 
-	if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
-		map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
-		cookie := &http.Cookie{
-			Name:   fmt.Sprintf("%v", c.ID),
-			Value:  encoded,
-			Path:   "/",
-			MaxAge: isso.config.MaxAge,
-			Secure: true,
+		if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
+			map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
+			cookie := &http.Cookie{
+				Name:   fmt.Sprintf("%v", c.ID),
+				Value:  encoded,
+				Path:   "/",
+				MaxAge: isso.config.MaxAge,
+				Secure: true,
+			}
+			http.SetCookie(w, cookie)
+			cookie = &http.Cookie{
+				Name:   fmt.Sprintf("isso-%v", c.ID),
+				Value:  encoded,
+				Path:   "/",
+				MaxAge: isso.config.MaxAge,
+				Secure: true,
+			}
+			if v := cookie.String(); v != "" {
+				w.Header().Add("X-Set-Cookie", v)
+			}
 		}
-		if v := cookie.String(); v != "" {
-			rb.WithHeader("Set-Cookie", v)
-		}
-		cookie = &http.Cookie{
-			Name:   fmt.Sprintf("isso-%v", c.ID),
-			Value:  encoded,
-			Path:   "/",
-			MaxAge: isso.config.MaxAge,
-			Secure: true,
-		}
-		if v := cookie.String(); v != "" {
-			rb.WithHeader("X-Set-Cookie", v)
-		}
-	}
 
-	if c.Mode == 2 {
-		json.Accepted(rb, c)
-	} else {
-		json.Created(rb, c)
+		if c.Mode == 2 {
+			json.Accepted(w, c)
+		} else {
+			json.Created(w, c)
+		}
 	}
 }
 
 // FetchComments fetch all related comments
-func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
+func (isso *ISSO) FetchComments() http.HandlerFunc {
 	type urlParm struct {
 		Parent      *int64  `schema:"parent"`
 		Limit       int64   `schema:"limit"`
@@ -135,11 +133,12 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 		return replies
 	}
 
-	return func(rb response.Builder, req *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := RequestIDFromContext(r.Context())
 		var urlparm urlParm
-		err := decoder.Decode(&urlparm, req.URL.Query())
+		err := decoder.Decode(&urlparm, r.URL.Query())
 		if err != nil {
-			json.BadRequest(rb, err)
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
 			return
 		}
 		var parent int64
@@ -153,9 +152,9 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 			plain = true
 		}
 
-		replyCount, err := isso.storage.CountReply(req.Context(), mux.Vars(req)["uri"], 5, urlparm.After)
+		replyCount, err := isso.storage.CountReply(r.Context(), mux.Vars(r)["uri"], 5, urlparm.After)
 		if err != nil {
-			json.ServerError(rb, err)
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
 			return
 		}
 		// param `after` may cause the loss of old comment's parent
@@ -163,9 +162,9 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 			replyCount[parent] = 0
 		}
 
-		commentsByParent, err := isso.storage.FetchCommentsByURI(req.Context(), mux.Vars(req)["uri"], parent, 5, "id", true)
+		commentsByParent, err := isso.storage.FetchCommentsByURI(r.Context(), mux.Vars(r)["uri"], parent, 5, "id", true)
 		if err != nil {
-			json.ServerError(rb, fmt.Errorf("fetch comments failed %w", err))
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
 			return
 		}
 		rJSON := struct {
@@ -211,43 +210,45 @@ func (isso *ISSO) FetchComments() func(rb response.Builder, req *http.Request) {
 			rJSON.Replies = []reply{}
 			rJSON.HiddenReplies = 0
 		}
-		json.OK(rb, rJSON)
+		json.OK(w, rJSON)
 	}
 }
 
 // CountComment return every thread's comment amount
-func (isso *ISSO) CountComment() func(rb response.Builder, req *http.Request) {
-	return func(rb response.Builder, req *http.Request) {
+func (isso *ISSO) CountComment() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := RequestIDFromContext(r.Context())
 		uris := []string{}
-		err := jsonBind(req.Body, &uris)
+		err := jsonBind(r.Body, &uris)
 		if err != nil {
-			json.BadRequest(rb, newHandlerError(err, "invalid post data"))
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
 			return
 		}
+
 		counts := []int64{}
 		if len(uris) == 0 {
-			json.OK(rb, counts)
+			json.OK(w, counts)
 			return
 		}
-		countsByURI, err := isso.storage.CountComment(req.Context(), uris)
+		countsByURI, err := isso.storage.CountComment(r.Context(), uris)
 		if err != nil {
-			json.ServerError(rb, newHandlerError(err, ""))
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
 			return
 		}
 		for _, i := range countsByURI {
 			counts = append(counts, i)
 		}
-		json.OK(rb, counts)
-		return
+		json.OK(w, counts)
 	}
 }
 
 // ViewComment return specific comment
-func (isso *ISSO) ViewComment() func(rb response.Builder, req *http.Request) {
-	return func(rb response.Builder, req *http.Request) {
+func (isso *ISSO) ViewComment() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		requestID := RequestIDFromContext(req.Context())
 		id, err := strconv.ParseInt(mux.Vars(req)["id"], 10, 64)
 		if err != nil {
-			json.BadRequest(rb, newHandlerError(err, fmt.Sprintf("invalid comment id %s", mux.Vars(req)["id"])))
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
 			return
 		}
 
@@ -259,24 +260,23 @@ func (isso *ISSO) ViewComment() func(rb response.Builder, req *http.Request) {
 		comment, err := isso.storage.GetComment(req.Context(), id)
 		if err != nil {
 			if errors.Is(err, ErrStorageNotFound) {
-				json.NotFound(rb, newHandlerError(err, fmt.Sprintf("can not found comment %d", id)))
+				json.NotFound(requestID, w, err, descStorageNotFound)
 				return
 			}
-			json.ServerError(rb, newHandlerError(err, descStorageUnhandledError))
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
 			return
 		}
 
 		r, _ := comment.convert(plain, isso.tools.hash, isso.tools.markdown)
-		json.OK(rb, r)
-		return
+		json.OK(w, r)
 	}
 }
 
 // EditComment edit an existing comment.
 // Editing a comment is only possible for a short period of time after it was created and only if the requestor has a valid cookie for it.
 // Editing a comment will set a new edit cookie in the response.
-func (isso *ISSO) EditComment() func(rb response.Builder, req *http.Request) {
-	return func(rb response.Builder, req *http.Request) {
+func (isso *ISSO) EditComment() http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
 
 	}
 }
