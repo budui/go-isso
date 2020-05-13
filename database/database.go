@@ -178,3 +178,23 @@ func newNullComment(c isso.Comment, threadID int64, remoteAddr string) nullComme
 		Notification: c.Notification,
 	}
 }
+
+func (d *Database) execstmt(ctx context.Context, rowsaffected *int64, lastinsertid *int64, stmt string, args ...interface{}) error {
+	result, err := d.DB.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return err
+	}
+	if rowsaffected != nil {
+		*rowsaffected, err = result.RowsAffected()
+		if err != nil {
+			return err
+		}
+	}
+	if lastinsertid != nil {
+		*lastinsertid, err = result.LastInsertId()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

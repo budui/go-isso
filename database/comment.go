@@ -231,15 +231,12 @@ func (d *Database) ActivateComment(ctx context.Context, id int64) error {
 	defer cancel()
 	logger.Debug("id: %d", id)
 
-	result, err := d.DB.ExecContext(ctx, d.statement["comment_activate"], id)
+	var rowsaffected int64
+	err := d.execstmt(ctx, &rowsaffected, nil, d.statement["comment_activate"], id)
 	if err != nil {
 		return wraperror(err)
 	}
-	row, err := result.RowsAffected()
-	if err != nil {
-		return wraperror(err)
-	}
-	if row != 1 {
+	if rowsaffected != 1 {
 		return wraperror(isso.ErrNotExpectAmount)
 	}
 	return nil

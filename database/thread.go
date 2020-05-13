@@ -69,13 +69,13 @@ func (d *Database) NewThread(ctx context.Context, uri string, title string, Host
 		}
 	}
 
-	result, err := d.DB.ExecContext(ctx, d.statement["thread_new"], uri, title)
+	var  rowsaffected, lastinsertid int64
+	err := d.execstmt(ctx, &rowsaffected, &lastinsertid, d.statement["thread_new"], uri, title)
 	if err != nil {
 		return isso.Thread{}, wraperror(err)
 	}
-	id, err := result.LastInsertId()
-	if err != nil {
-		return isso.Thread{}, wraperror(err)
+	if rowsaffected != 1 {
+		return isso.Thread{}, wraperror(isso.ErrNotExpectAmount)
 	}
-	return isso.Thread{ID: id, URI: uri, Title: title}, nil
+	return isso.Thread{ID: lastinsertid, URI: uri, Title: title}, nil
 }
