@@ -106,7 +106,7 @@ func New(path string, timeout time.Duration) (*Database, error) {
 }
 
 func (d *Database) withTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), d.timeout)
+	return context.WithTimeout(ctx, d.timeout)
 }
 
 type nullComment struct {
