@@ -15,6 +15,7 @@ import (
 	"gopkg.in/guregu/null.v4"
 	"wrong.wang/x/go-isso/isso"
 	"wrong.wang/x/go-isso/logger"
+	"wrong.wang/x/go-isso/tool/bloomfilter"
 	"wrong.wang/x/go-isso/version"
 )
 
@@ -122,7 +123,7 @@ type nullComment struct {
 	Website      null.String
 	Likes        int
 	Dislikes     int
-	Voters       []byte
+	Voters       [256]byte
 	Notification int
 }
 
@@ -158,8 +159,9 @@ func (nc nullComment) ToComment() isso.Comment {
 }
 
 func newNullComment(c isso.Comment, threadID int64, remoteAddr string) nullComment {
-	// TODO: generated votes use Bloomfilter
-	votes := []byte{}
+	bf := bloomfilter.New()
+	bf.Add([]byte(remoteAddr))
+	votes := bf.Buffer()
 	return nullComment{
 		TID:          threadID,
 		ID:           c.ID,
