@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"gopkg.in/guregu/null.v4"
 	"wrong.wang/x/go-isso/isso"
@@ -240,4 +241,28 @@ func (d *Database) ActivateComment(ctx context.Context, id int64) error {
 		return wraperror(isso.ErrNotExpectAmount)
 	}
 	return nil
+}
+
+// EditComment edit comment
+func (d *Database) EditComment(ctx context.Context, c isso.Comment) (isso.Comment, error) {
+	ctx, cancel := d.withTimeout(ctx)
+	defer cancel()
+	logger.Debug("edit %s 's comment", c.Author)
+
+	var rowsaffected int64
+	modified := float64(time.Now().UnixNano()) / float64(1e9)
+	err := d.execstmt(ctx, &rowsaffected, nil, d.statement["comment_edit"],
+		c.Text, c.Author, null.StringFromPtr(c.Website), modified, c.ID)
+	if err != nil {
+		return isso.Comment{}, wraperror(err)
+	}
+	if rowsaffected != 1 {
+		return isso.Comment{}, wraperror(isso.ErrNotExpectAmount)
+	}
+
+	comment, err := d.GetComment(ctx, c.ID)
+	if err != nil {
+		return isso.Comment{}, wraperror(err)
+	}
+	return comment, nil
 }
