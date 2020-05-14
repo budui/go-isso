@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"path"
 	"time"
 
 	"wrong.wang/x/go-isso/extract"
@@ -45,13 +44,13 @@ func (d *Database) NewThread(ctx context.Context, uri string, title string, Host
 	defer cancel()
 
 	if title == "" {
-		url := path.Join(Host, uri)
+		url := Host + uri
 		logger.Debug("database: fetch %s", url)
 		ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
-			return isso.Thread{}, wraperror(fmt.Errorf("get title failed: %s, %w", url, err))
+			return isso.Thread{}, wraperror(fmt.Errorf("get title failed: do request failed %v, %w", url, err))
 		}
 		client := &http.Client{}
 		resp, err := client.Do(req)
@@ -69,7 +68,7 @@ func (d *Database) NewThread(ctx context.Context, uri string, title string, Host
 		}
 	}
 
-	var  rowsaffected, lastinsertid int64
+	var rowsaffected, lastinsertid int64
 	err := d.execstmt(ctx, &rowsaffected, &lastinsertid, d.statement["thread_new"], uri, title)
 	if err != nil {
 		return isso.Thread{}, wraperror(err)
