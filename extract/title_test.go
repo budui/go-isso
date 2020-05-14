@@ -108,7 +108,7 @@ func TestTitleAndThreadURI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotTitle, gotUri, err := TitleAndThreadURI(tt.args.body, tt.args.defaultTitle, tt.args.defaultURI)
+			gotTitle, gotUri, err := titleAndThreadURI(tt.args.body, tt.args.defaultTitle, tt.args.defaultURI)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TitleAndThreadURI() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -1,20 +1,48 @@
 package extract
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io"
+	"net/http"
 	"strings"
 
 	"golang.org/x/net/html"
 )
 
-// TitleAndThreadURI extract title and thread uri
+// GetPageTitle do the GET request to url, then extract title
+func GetPageTitle(ctx context.Context, host, uri string) (title string, newuri string, err error) {
+	url := host + uri
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", "", fmt.Errorf("get title failed: do request failed %v, %w", url, err)
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return "", "", fmt.Errorf("get title failed: do request failed %v, %w", url, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", "", fmt.Errorf("get title failed: %s, %d", url, resp.StatusCode)
+	}
+
+	title, newuri, err = titleAndThreadURI(resp.Body, "Untitled", uri)
+	if err != nil {
+		return "", "", fmt.Errorf("get title failed: extract failed. %s, %w", url, err)
+	}
+	return
+}
+
+// titleAndThreadURI extract title and thread uri
 // first try to get attribute ,
 // if failed, get the <title> node content
-func TitleAndThreadURI(body io.Reader, defaultTitle string, defaultURI string) (title string, uri string, err error) {
+func titleAndThreadURI(body io.Reader, defaultTitle string, defaultURI string) (title string, uri string, err error) {
 	uri = defaultURI
 	title = defaultTitle
-	
+
 	htmlRoot, err := html.Parse(body)
 	if err != nil {
 		return

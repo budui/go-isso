@@ -10,7 +10,9 @@ var (
 	// ErrStorageNotFound is returned by Storage when no result can be found
 	ErrStorageNotFound = errors.New("storage: no result found")
 	// ErrNotExpectAmount is returned by databStoragease method when affected amount is not equal as expect.
-    ErrNotExpectAmount = errors.New("storage: affected amount is not equal as expect")
+	ErrNotExpectAmount = errors.New("storage: affected amount is not equal as expect")
+	// ErrInvalidParam is returned by databStoragease method when input param check failed.
+	ErrInvalidParam = errors.New("storage: handler input is not valid")
 )
 
 // mode for comment's mode. comment mode CAN NOT be set to modePublic.
@@ -43,7 +45,7 @@ type Storage interface {
 type ThreadStorage interface {
 	GetThreadByURI(ctx context.Context, uri string) (Thread, error)
 	GetThreadByID(ctx context.Context, id int64) (Thread, error)
-	NewThread(ctx context.Context, uri string, title string, Host string) (Thread, error)
+	NewThread(ctx context.Context, uri string, title string) (Thread, error)
 }
 
 // CommentStorage handles all operations related to Comment and the database.

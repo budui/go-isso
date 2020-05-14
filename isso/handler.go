@@ -1,15 +1,19 @@
 package isso
 
 import (
+	"context"
 	"crypto/sha1"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
 	"github.com/kr/pretty"
+	"wrong.wang/x/go-isso/extract"
 	"wrong.wang/x/go-isso/logger"
 	"wrong.wang/x/go-isso/response/json"
 	"wrong.wang/x/go-isso/tool/validator"
@@ -19,8 +23,8 @@ import (
 func (isso *ISSO) CreateComment() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := RequestIDFromContext(r.Context())
-		commentWebsite := FindOrigin(r)
-		if commentWebsite == "" {
+		commentOrigin := FindOrigin(r)
+		if commentOrigin == "" {
 			json.BadRequest(requestID, w, nil, "can not find header origin")
 			return
 		}
@@ -37,21 +41,8 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 			return
 		}
 
-		var thread Thread
-		thread, err = isso.storage.GetThreadByURI(r.Context(), comment.URI)
-		if err != nil {
-			if errors.Is(err, ErrStorageNotFound) {
-				// no thread realted to this uri
-				// so create new thread
-				if thread, err = isso.storage.NewThread(r.Context(), comment.URI, comment.Title, commentWebsite); err != nil {
-					json.ServerError(requestID, w, err, descStorageUnhandledError)
-					return
-				}
-			} else {
-				// can not handled error
-				json.ServerError(requestID, w, err, descStorageUnhandledError)
-				return
-			}
+		if comment.Website != nil && (strings.HasPrefix(*comment.Website, "https://") || strings.HasPrefix(*comment.Website, "http://")) {
+			*comment.Website = "http://" + *comment.Website
 		}
 
 		if isso.config.Moderation.Enable {
@@ -64,6 +55,29 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 			}
 		} else {
 			comment.Mode = ModePublic
+		}
+
+		var thread Thread
+		thread, err = isso.storage.GetThreadByURI(r.Context(), comment.URI)
+		if err != nil {
+			if errors.Is(err, ErrStorageNotFound) {
+				// no thread realted to this uri
+				// so create new thread
+				if comment.Title == "" {
+					ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+					comment.URI, comment.Title, err = extract.GetPageTitle(ctx, commentOrigin, comment.URI)
+					cancel()
+				}
+
+				if thread, err = isso.storage.NewThread(r.Context(), comment.URI, comment.Title); err != nil {
+					json.ServerError(requestID, w, err, descStorageUnhandledError)
+					return
+				}
+			} else {
+				// can not handled error
+				json.ServerError(requestID, w, err, descStorageUnhandledError)
+				return
+			}
 		}
 
 		c, err := isso.storage.NewComment(r.Context(), comment.Comment, thread.ID, comment.RemoteAddr)

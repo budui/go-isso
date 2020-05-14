@@ -31,15 +31,21 @@ func TestDatabase_Thread(t *testing.T) {
 		}
 	})
 	t.Run("normal", func(t *testing.T) {
-		newt1, err := db.NewThread(context.Background(), "/uri", "/hello", "wrong.wang")
+		newt1, err := db.NewThread(context.Background(), "/uri", "hello")
 		if (err != nil) != false {
 			t.Errorf("Database.NewThread() error = %v, wantErr %v", err, false)
 			return
 		}
 
-		newt2, err := db.NewThread(context.Background(), "/about", "", "https://wrong.wang")
+		newt2, err := db.NewThread(context.Background(), "/about", "test")
 		if (err != nil) != false {
 			t.Errorf("Database.NewThread() %v", err)
+			return
+		}
+
+		_, err = db.NewThread(context.Background(), "/about", "")
+		if (err != nil) != true {
+			t.Errorf("Database.NewThread() need error %v, but got nil", isso.ErrInvalidParam)
 			return
 		}
 
