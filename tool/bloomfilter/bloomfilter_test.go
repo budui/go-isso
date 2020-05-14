@@ -91,3 +91,10 @@ func Test_sumshift(t *testing.T) {
 		}
 	})
 }
+
+func BenchmarkBloomfilter_Add(b *testing.B) {
+	bf := New()
+	for i := 0; i < b.N; i++ {
+		bf.Add([]byte(fmt.Sprintf("%d", i)))
+	}
+}
