@@ -12,9 +12,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
-	"github.com/kr/pretty"
 	"wrong.wang/x/go-isso/extract"
-	"wrong.wang/x/go-isso/logger"
 	"wrong.wang/x/go-isso/response/json"
 	"wrong.wang/x/go-isso/tool/validator"
 )
@@ -34,16 +32,50 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 			json.BadRequest(requestID, w, err, descRequestInvalidParm)
 			return
 		}
+
 		comment.URI = mux.Vars(r)["uri"]
 		comment.RemoteAddr = findClientIP(r)
 		if err := validator.Validate(comment); err != nil {
 			json.BadRequest(requestID, w, err, fmt.Sprintf("comment validate failed: %s", err.Error()))
 			return
 		}
-
 		if comment.Website != nil && (strings.HasPrefix(*comment.Website, "https://") || strings.HasPrefix(*comment.Website, "http://")) {
 			*comment.Website = "http://" + *comment.Website
 		}
+
+		ok, reason := isso.newcommentGuard(r.Context(), comment.Comment)
+		if !ok {
+			json.Forbidden(requestID, w, nil, reason)
+		}
+
+		var thread Thread
+		thread, err = isso.storage.GetThreadByURI(r.Context(), comment.URI)
+		if err != nil {
+			if errors.Is(err, ErrStorageNotFound) {
+				// no thread realted to this uri
+				// so create new thread
+				if comment.Title == "" {
+					ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+					defer cancel()
+					comment.URI, comment.Title, err = extract.GetPageTitle(ctx, commentOrigin, comment.URI)
+					if err != nil {
+						json.NotFound(requestID, w, err, "URI does not exist or can parse or get title correctly")
+						return
+					}
+				}
+				if thread, err = isso.storage.NewThread(r.Context(), comment.URI, comment.Title); err != nil {
+					json.ServerError(requestID, w, err, descStorageUnhandledError)
+					return
+				}
+				isso.tools.event.Publish("comments.new:new-thread", thread)
+			} else {
+				// can not handled error
+				json.ServerError(requestID, w, err, descStorageUnhandledError)
+				return
+			}
+		}
+
+		isso.tools.event.Publish("comments.new:before-save", thread)
 
 		if isso.config.Moderation.Enable {
 			if isso.config.Moderation.ApproveAcquaintance &&
@@ -56,37 +88,16 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 		} else {
 			comment.Mode = ModePublic
 		}
-
-		var thread Thread
-		thread, err = isso.storage.GetThreadByURI(r.Context(), comment.URI)
-		if err != nil {
-			if errors.Is(err, ErrStorageNotFound) {
-				// no thread realted to this uri
-				// so create new thread
-				if comment.Title == "" {
-					ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
-					comment.URI, comment.Title, err = extract.GetPageTitle(ctx, commentOrigin, comment.URI)
-					cancel()
-				}
-
-				if thread, err = isso.storage.NewThread(r.Context(), comment.URI, comment.Title); err != nil {
-					json.ServerError(requestID, w, err, descStorageUnhandledError)
-					return
-				}
-			} else {
-				// can not handled error
-				json.ServerError(requestID, w, err, descStorageUnhandledError)
-				return
-			}
-		}
-
 		c, err := isso.storage.NewComment(r.Context(), comment.Comment, thread.ID, comment.RemoteAddr)
 		if err != nil {
 			json.ServerError(requestID, w, err, descStorageUnhandledError)
 			return
 		}
+		isso.tools.event.Publish("comments.new:after-save", thread, c)
 
-		logger.Debug(fmt.Sprintf("new comment: %# v", pretty.Formatter(c)))
+		reply, _ := c.convert(false, isso.tools.hash, isso.tools.markdown)
+
+		isso.tools.event.Publish("comments.new:finish", thread, c)
 
 		if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
 			map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
@@ -111,11 +122,26 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 		}
 
 		if c.Mode == ModeAccepted {
-			json.Accepted(w, c)
+			json.Accepted(w, reply)
 		} else {
-			json.Created(w, c)
+			json.Created(w, reply)
 		}
 	}
+}
+
+func (isso *ISSO) newcommentGuard(ctx context.Context, c Comment) (bool, string) {
+	if !isso.config.Server.Guard.Enable {
+		return true, ""
+	}
+	if isso.config.Server.Guard.RequireEmail && c.Email == nil {
+		return false, "email address required but not provided"
+	}
+	if isso.config.Server.Guard.RequireAuthor && c.Author == "" {
+		return false, "author address required but not provided"
+	}
+
+	g := isso.config.Server.Guard
+	return isso.storage.Guard(ctx, c, g.RateLimit, g.DirectReply, g.ReplyToSelf)
 }
 
 // FetchComments fetch all related comments

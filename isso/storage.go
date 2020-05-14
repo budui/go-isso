@@ -39,6 +39,7 @@ type Storage interface {
 	ThreadStorage
 	CommentStorage
 	PreferenceStorage
+	Guard(ctx context.Context, c Comment, ratelimit int, directreply int, replytoself bool) (bool, string)
 }
 
 // ThreadStorage handles all operations related to Thread and the database.
