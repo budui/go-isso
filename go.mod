@@ -15,8 +15,8 @@ require (
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	github.com/sony/sonyflake v1.0.0
 	github.com/yuin/goldmark v1.1.30
-	golang.org/x/crypto v0.0.0-20200429183012-4b2356b1ed79
-	golang.org/x/net v0.0.0-20200501053045-e0ff5e5a1de5
+	golang.org/x/crypto v0.0.0-20200510223506-06a226fb4e37
+	golang.org/x/net v0.0.0-20200513185701-a91f0712d120
 	gopkg.in/guregu/null.v4 v4.0.0
-	gopkg.in/ini.v1 v1.55.0
+	gopkg.in/ini.v1 v1.56.0
 )
