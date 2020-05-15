@@ -59,9 +59,15 @@ var (
 			threads.uri=? AND comments.tid=threads.id AND (? | comments.mode) = ?`,
 		"comment_count": `SELECT threads.uri, COUNT(comments.id) FROM comments LEFT OUTER JOIN 
 		threads ON threads.id = tid AND comments.mode = 1 GROUP BY threads.uri`,
-		"comment_activate": `UPDATE comments SET mode=1 WHERE id=$1 AND mode=2;`,
+		"comment_activate":    `UPDATE comments SET mode=1 WHERE id=$1 AND mode=2;`,
 		"comment_unsubscribe": `UPDATE comments SET notification=0 WHERE email=$1 AND (id=$2 OR parent=$2);`,
-		"comment_edit": `UPDATE comments SET text=$1,author=$2,website=$3,modified=$4 WHERE id=$5`,
+		"comment_edit":        `UPDATE comments SET text=$1,author=$2,website=$3,modified=$4 WHERE id=$5`,
+
+		"comment_guard_ratelimit": `SELECT COUNT(id) FROM comments WHERE remote_addr = ? AND ? - created < 60;`,
+		"comment_guard_3_direct_comment": `SELECT COUNT(id) FROM comments
+			WHERE tid = (SELECT id FROM threads WHERE uri = ?) AND remote_addr = ? AND parent IS NULL;`,
+		"comment_guard_reply_to_self": `SELECT COUNT(id) FROM comments
+			WHERE remote_addr = ? AND id = ? AND ? - created < ?;`,
 	}
 )
 

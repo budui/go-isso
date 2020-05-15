@@ -43,7 +43,7 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 			*comment.Website = "http://" + *comment.Website
 		}
 
-		ok, reason := isso.newcommentGuard(r.Context(), comment.Comment)
+		ok, reason := isso.newCommentGuard(r.Context(), comment.Comment, comment.URI)
 		if !ok {
 			json.Forbidden(requestID, w, nil, reason)
 		}
@@ -129,7 +129,7 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 	}
 }
 
-func (isso *ISSO) newcommentGuard(ctx context.Context, c Comment) (bool, string) {
+func (isso *ISSO) newCommentGuard(ctx context.Context, c Comment, uri string) (bool, string) {
 	if !isso.config.Server.Guard.Enable {
 		return true, ""
 	}
@@ -141,7 +141,7 @@ func (isso *ISSO) newcommentGuard(ctx context.Context, c Comment) (bool, string)
 	}
 
 	g := isso.config.Server.Guard
-	return isso.storage.Guard(ctx, c, g.RateLimit, g.DirectReply, g.ReplyToSelf)
+	return isso.storage.NewCommentGuard(ctx, c, uri, g.RateLimit, g.DirectReply, g.ReplyToSelf, isso.config.MaxAge)
 }
 
 // FetchComments fetch all related comments
