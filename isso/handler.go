@@ -18,7 +18,7 @@ import (
 	"wrong.wang/x/go-isso/tool/validator"
 )
 
-const MAX_LIKES_AND_DISLIKES = 142
+const maxlikeanddislikes = 142
 
 // CreateComment create a new comment
 func (isso *ISSO) CreateComment() http.HandlerFunc {
@@ -454,9 +454,9 @@ func (isso *ISSO) VoteComment() http.HandlerFunc {
 
 		vr := vresponse{Likes: c.Likes, Dislikes: c.Dislikes}
 
-		if c.Likes+c.Dislikes > MAX_LIKES_AND_DISLIKES {
+		if c.Likes+c.Dislikes > maxlikeanddislikes {
 			vr.Msg = fmt.Sprintf(`denied due to a "likes + dislikes" total too high (%d > %d)`,
-				c.Likes+c.Dislikes, MAX_LIKES_AND_DISLIKES)
+				c.Likes+c.Dislikes, maxlikeanddislikes)
 			json.OK(w, vr)
 			return
 		}
