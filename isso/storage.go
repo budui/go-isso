@@ -61,6 +61,7 @@ type CommentStorage interface {
 	CountComment(ctx context.Context, uris []string) (map[string]int64, error)
 	EditComment(ctx context.Context, c Comment) (Comment, error)
 	DeleteComment(ctx context.Context, cid int64) (Comment, error)
+	VoteComment(ctx context.Context, c Comment, up bool) error
 }
 
 // PreferenceStorage handles all operations related to Preference and the database.

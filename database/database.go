@@ -142,6 +142,7 @@ func (nc nullComment) ToComment() isso.Comment {
 		Dislikes:     nc.Dislikes,
 		Notification: nc.Notification,
 		RemoteAddr:   nc.RemoteAddr,
+		Voters:       nc.Voters,
 	}
 	if !nc.Parent.Valid {
 		c.Parent = nil

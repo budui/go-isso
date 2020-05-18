@@ -289,3 +289,22 @@ func (d *Database) DeleteComment(ctx context.Context, cid int64) (isso.Comment, 
 	}
 	return isso.Comment{}, wraperror(err)
 }
+
+// VoteComment vote  comment, but if may failed when break limit
+func (d *Database) VoteComment(ctx context.Context, c isso.Comment, up bool) error {
+	ctx, cancel := d.withTimeout(ctx)
+	defer cancel()
+	logger.Debug("vote comment %d", c.ID)
+
+	if up {
+		c.Likes++
+	} else {
+		c.Dislikes++
+	}
+
+	err := d.execstmt(ctx, nil, nil, d.statement["comment_vote_set"], c.Likes, c.Dislikes, c.Voters, c.ID)
+	if err != nil {
+		return wraperror(nil)
+	}
+	return nil
+}

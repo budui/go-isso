@@ -14,8 +14,11 @@ import (
 	"github.com/gorilla/schema"
 	"wrong.wang/x/go-isso/extract"
 	"wrong.wang/x/go-isso/response/json"
+	"wrong.wang/x/go-isso/tool/bloomfilter"
 	"wrong.wang/x/go-isso/tool/validator"
 )
+
+const MAX_LIKES_AND_DISLIKES = 142
 
 // CreateComment create a new comment
 func (isso *ISSO) CreateComment() http.HandlerFunc {
@@ -417,8 +420,70 @@ func (isso *ISSO) EditComment() http.HandlerFunc {
 
 // VoteComment used to like or dislike comment
 func (isso *ISSO) VoteComment() http.HandlerFunc {
+	type vresponse struct {
+		Likes    int    `json:"likes"`
+		Dislikes int    `json:"dislikes"`
+		Msg      string `json:"message,omitempty"`
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := RequestIDFromContext(r.Context())
+		cid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+		if err != nil {
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+			return
+		}
+		var upvote bool
+		if mux.Vars(r)["vote"] == "like" {
+			upvote = true
+		} else if mux.Vars(r)["vote"] == "dislike" {
+			upvote = false
+		} else {
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+			return
+		}
 
+		c, err := isso.storage.GetComment(r.Context(), cid)
+		if err != nil {
+			if errors.Is(err, ErrStorageNotFound) {
+				json.NotFound(requestID, w, err, descStorageNotFound)
+				return
+			}
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
+			return
+		}
+
+		vr := vresponse{Likes: c.Likes, Dislikes: c.Dislikes}
+
+		if c.Likes+c.Dislikes > MAX_LIKES_AND_DISLIKES {
+			vr.Msg = fmt.Sprintf(`denied due to a "likes + dislikes" total too high (%d > %d)`,
+				c.Likes+c.Dislikes, MAX_LIKES_AND_DISLIKES)
+			json.OK(w, vr)
+			return
+		}
+
+		remoteAddr := findClientIP(r)
+		bf := bloomfilter.RecoverFrom(c.Voters, c.Likes+c.Dislikes)
+		if bf.Contains([]byte(remoteAddr)) {
+			vr.Msg = fmt.Sprintf(`denied because a vote has already been registered for this remote address: %s`, remoteAddr)
+			json.OK(w, vr)
+			return
+		}
+		bf.Add([]byte(remoteAddr))
+		c.Voters = bf.Buffer()
+
+		err = isso.storage.VoteComment(r.Context(), c, upvote)
+		if err != nil {
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
+			return
+		}
+
+		if upvote {
+			vr.Likes++
+		} else {
+			vr.Dislikes++
+		}
+		json.OK(w, vr)
+		return
 	}
 }
 
