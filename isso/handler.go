@@ -301,7 +301,7 @@ func (isso *ISSO) EditComment() http.HandlerFunc {
 
 	type editInput struct {
 		Text    string  `json:"text"  validate:"required,gte=3,lte=65535"`
-		Author  *string `json:"author"  validate:"required,gte=1,lte=15"`
+		Author  *string `json:"author"  validate:"omitempty,gte=1,lte=15"`
 		Email   *string `json:"email"  validate:"omitempty,email"`
 		Website *string `json:"website"  validate:"omitempty,url"`
 	}
@@ -492,6 +492,7 @@ func (isso *ISSO) setcookie(c Comment, w http.ResponseWriter, delete bool) {
 		if v := cookie.String(); v != "" {
 			w.Header().Add("X-Set-Cookie", v)
 		}
+		return
 	}
 	if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
 		map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
