@@ -60,6 +60,7 @@ type CommentStorage interface {
 	FetchCommentsByURI(ctx context.Context, uri string, parent int64, mode int, orderBy string, asc bool) (map[int64][]Comment, error)
 	CountComment(ctx context.Context, uris []string) (map[string]int64, error)
 	EditComment(ctx context.Context, c Comment) (Comment, error)
+	DeleteComment(ctx context.Context, cid int64) (Comment, error)
 }
 
 // PreferenceStorage handles all operations related to Preference and the database.

@@ -386,6 +386,8 @@ func (isso *ISSO) EditComment() http.HandlerFunc {
 			return
 		}
 
+		isso.tools.event.Publish("comments.edit", c)
+
 		reply, _ := c.convert(false, isso.tools.hash, isso.tools.markdown)
 
 		if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
@@ -423,6 +425,67 @@ func (isso *ISSO) VoteComment() http.HandlerFunc {
 // DeleteComment delete a comment
 func (isso *ISSO) DeleteComment() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := RequestIDFromContext(r.Context())
+		cid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+		if err != nil {
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+			return
+		}
 
+		cookieOK := false
+		var comment Comment
+		if cookie, err := r.Cookie(fmt.Sprintf("%v", cid)); err == nil {
+			cvalue := make(map[int64][20]byte)
+			if err = isso.tools.securecookie.Decode(fmt.Sprintf("%v", cid), cookie.Value, &cvalue); err == nil {
+				if h, ok := cvalue[cid]; ok {
+					if comment, err = isso.storage.GetComment(r.Context(), cid); err == nil {
+						if h == sha1.Sum([]byte(comment.Text)) {
+							cookieOK = true
+						}
+					} else {
+						if errors.Is(err, ErrStorageNotFound) {
+							json.NotFound(requestID, w, err, descStorageNotFound)
+							return
+						}
+						json.ServerError(requestID, w, err, descStorageUnhandledError)
+						return
+					}
+				}
+			}
+		}
+		if !cookieOK {
+			json.Forbidden(requestID, w, err, descRequestInvalidCookies)
+			return
+		}
+
+		comment, err = isso.storage.DeleteComment(r.Context(), cid)
+		if err != nil {
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
+			return
+		}
+
+		isso.tools.event.Publish("comments.delete", cid)
+
+		reply, _ := comment.convert(false, isso.tools.hash, isso.tools.markdown)
+
+		cookie := &http.Cookie{
+			Name:   fmt.Sprintf("%v", comment.ID),
+			Path:   "/",
+			MaxAge: -1,
+			Secure: true,
+		}
+		http.SetCookie(w, cookie)
+
+		cookie = &http.Cookie{
+			Name:   fmt.Sprintf("isso-%v", comment.ID),
+			Path:   "/",
+			MaxAge: -1,
+			Secure: true,
+		}
+		if v := cookie.String(); v != "" {
+			w.Header().Add("X-Set-Cookie", v)
+		}
+
+		json.OK(w, reply)
 	}
 }

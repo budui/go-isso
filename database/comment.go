@@ -252,7 +252,6 @@ func (d *Database) EditComment(ctx context.Context, c isso.Comment) (isso.Commen
 	if c.Modified == nil {
 		return isso.Comment{}, wraperror(isso.ErrInvalidParam)
 	}
-
 	err := d.execstmt(ctx, &rowsaffected, nil, d.statement["comment_edit"], c.Text, c.Author,
 		null.StringFromPtr(c.Website), *c.Modified, null.StringFromPtr(c.Email), c.ID)
 	if err != nil {
@@ -267,4 +266,26 @@ func (d *Database) EditComment(ctx context.Context, c isso.Comment) (isso.Commen
 		return isso.Comment{}, wraperror(err)
 	}
 	return comment, nil
+}
+
+// DeleteComment delete comment by id
+func (d *Database) DeleteComment(ctx context.Context, cid int64) (isso.Comment, error) {
+	ctx, cancel := d.withTimeout(ctx)
+	defer cancel()
+	logger.Debug("delete comment %d", cid)
+
+	var n int64
+	var err error
+	if err = d.DB.QueryRowContext(ctx, d.statement["comment_delete_check"], cid).Scan(&n); err == nil {
+		stmt := d.statement["comment_delete_hard"]
+		if n > 0 {
+			stmt = d.statement["comment_delete_soft"]
+		}
+		if err = d.execstmt(ctx, nil, nil, stmt, cid); err == nil {
+			if err = d.execstmt(ctx, nil, nil, d.statement["comment_delete_stale"]); err == nil {
+				return d.GetComment(ctx, cid)
+			}
+		}
+	}
+	return isso.Comment{}, wraperror(err)
 }
