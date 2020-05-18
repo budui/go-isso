@@ -30,7 +30,7 @@ func writeErrorJSON(w http.ResponseWriter, err error, requestID string, desc str
 		caller = strings.TrimPrefix(fn.Name(), version.Mod)
 	}
 
-	errstr := fmt.Sprintf("[%s] %s - %s", requestID, caller, desc)
+	errstr := fmt.Sprintf("%s %s - %s", requestID, caller, desc)
 	if err != nil {
 		errstr = fmt.Sprintf("%s\n\t%v", errstr, err)
 	}
