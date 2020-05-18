@@ -102,27 +102,7 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 
 		isso.tools.event.Publish("comments.new:finish", thread, c)
 
-		if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
-			map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
-			cookie := &http.Cookie{
-				Name:   fmt.Sprintf("%v", c.ID),
-				Value:  encoded,
-				Path:   "/",
-				MaxAge: isso.config.MaxAge,
-				Secure: true,
-			}
-			http.SetCookie(w, cookie)
-			cookie = &http.Cookie{
-				Name:   fmt.Sprintf("isso-%v", c.ID),
-				Value:  encoded,
-				Path:   "/",
-				MaxAge: isso.config.MaxAge,
-				Secure: true,
-			}
-			if v := cookie.String(); v != "" {
-				w.Header().Add("X-Set-Cookie", v)
-			}
-		}
+		isso.setcookie(c, w, false)
 
 		if c.Mode == ModeAccepted {
 			json.Accepted(w, reply)
@@ -328,38 +308,10 @@ func (isso *ISSO) EditComment() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := RequestIDFromContext(r.Context())
-		cid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
-		if err != nil {
-			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+		comment, ok := isso.checkcookies(w, r)
+		if !ok {
 			return
 		}
-
-		cookieOK := false
-		var comment Comment
-		if cookie, err := r.Cookie(fmt.Sprintf("%v", cid)); err == nil {
-			cvalue := make(map[int64][20]byte)
-			if err = isso.tools.securecookie.Decode(fmt.Sprintf("%v", cid), cookie.Value, &cvalue); err == nil {
-				if h, ok := cvalue[cid]; ok {
-					if comment, err = isso.storage.GetComment(r.Context(), cid); err == nil {
-						if h == sha1.Sum([]byte(comment.Text)) {
-							cookieOK = true
-						}
-					} else {
-						if errors.Is(err, ErrStorageNotFound) {
-							json.NotFound(requestID, w, err, descStorageNotFound)
-							return
-						}
-						json.ServerError(requestID, w, err, descStorageUnhandledError)
-						return
-					}
-				}
-			}
-		}
-		if !cookieOK {
-			json.Forbidden(requestID, w, err, descRequestInvalidCookies)
-			return
-		}
-
 		var ei editInput
 		if err := jsonBind(r.Body, &ei); err != nil {
 			json.BadRequest(requestID, w, err, descRequestInvalidParm)
@@ -392,28 +344,7 @@ func (isso *ISSO) EditComment() http.HandlerFunc {
 		isso.tools.event.Publish("comments.edit", c)
 
 		reply, _ := c.convert(false, isso.tools.hash, isso.tools.markdown)
-
-		if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
-			map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
-			cookie := &http.Cookie{
-				Name:   fmt.Sprintf("%v", c.ID),
-				Value:  encoded,
-				Path:   "/",
-				MaxAge: isso.config.MaxAge,
-				Secure: true,
-			}
-			http.SetCookie(w, cookie)
-			cookie = &http.Cookie{
-				Name:   fmt.Sprintf("isso-%v", c.ID),
-				Value:  encoded,
-				Path:   "/",
-				MaxAge: isso.config.MaxAge,
-				Secure: true,
-			}
-			if v := cookie.String(); v != "" {
-				w.Header().Add("X-Set-Cookie", v)
-			}
-		}
+		isso.setcookie(c, w, false)
 		json.OK(w, reply)
 	}
 }
@@ -491,50 +422,61 @@ func (isso *ISSO) VoteComment() http.HandlerFunc {
 func (isso *ISSO) DeleteComment() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := RequestIDFromContext(r.Context())
-		cid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
-		if err != nil {
-			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+
+		comment, ok := isso.checkcookies(w, r)
+		if !ok {
 			return
 		}
-
-		cookieOK := false
-		var comment Comment
-		if cookie, err := r.Cookie(fmt.Sprintf("%v", cid)); err == nil {
-			cvalue := make(map[int64][20]byte)
-			if err = isso.tools.securecookie.Decode(fmt.Sprintf("%v", cid), cookie.Value, &cvalue); err == nil {
-				if h, ok := cvalue[cid]; ok {
-					if comment, err = isso.storage.GetComment(r.Context(), cid); err == nil {
-						if h == sha1.Sum([]byte(comment.Text)) {
-							cookieOK = true
-						}
-					} else {
-						if errors.Is(err, ErrStorageNotFound) {
-							json.NotFound(requestID, w, err, descStorageNotFound)
-							return
-						}
-						json.ServerError(requestID, w, err, descStorageUnhandledError)
-						return
-					}
-				}
-			}
-		}
-		if !cookieOK {
-			json.Forbidden(requestID, w, err, descRequestInvalidCookies)
-			return
-		}
-
-		comment, err = isso.storage.DeleteComment(r.Context(), cid)
+		comment, err := isso.storage.DeleteComment(r.Context(), comment.ID)
 		if err != nil {
 			json.ServerError(requestID, w, err, descStorageUnhandledError)
 			return
 		}
 
-		isso.tools.event.Publish("comments.delete", cid)
+		isso.tools.event.Publish("comments.delete", comment.ID)
 
 		reply, _ := comment.convert(false, isso.tools.hash, isso.tools.markdown)
+		isso.setcookie(comment, w, true)
+		json.OK(w, reply)
+	}
+}
 
+func (isso *ISSO) checkcookies(w http.ResponseWriter, r *http.Request) (Comment, bool) {
+	requestID := RequestIDFromContext(r.Context())
+	cid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+	if err != nil {
+		json.BadRequest(requestID, w, err, descRequestInvalidParm)
+		return Comment{}, false
+	}
+
+	var c Comment
+	if cookie, err := r.Cookie(fmt.Sprintf("%v", cid)); err == nil {
+		cvalue := make(map[int64][20]byte)
+		if err = isso.tools.securecookie.Decode(fmt.Sprintf("%v", cid), cookie.Value, &cvalue); err == nil {
+			if h, ok := cvalue[cid]; ok {
+				if c, err = isso.storage.GetComment(r.Context(), cid); err == nil {
+					if h == sha1.Sum([]byte(c.Text)) {
+						return c, true
+					}
+				} else {
+					if errors.Is(err, ErrStorageNotFound) {
+						json.NotFound(requestID, w, err, descStorageNotFound)
+						return Comment{}, false
+					}
+					json.ServerError(requestID, w, err, descStorageUnhandledError)
+					return Comment{}, false
+				}
+			}
+		}
+	}
+	json.Forbidden(requestID, w, err, descRequestInvalidCookies)
+	return Comment{}, false
+}
+
+func (isso *ISSO) setcookie(c Comment, w http.ResponseWriter, delete bool) {
+	if delete {
 		cookie := &http.Cookie{
-			Name:   fmt.Sprintf("%v", comment.ID),
+			Name:   fmt.Sprintf("%v", c.ID),
 			Path:   "/",
 			MaxAge: -1,
 			Secure: true,
@@ -542,7 +484,7 @@ func (isso *ISSO) DeleteComment() http.HandlerFunc {
 		http.SetCookie(w, cookie)
 
 		cookie = &http.Cookie{
-			Name:   fmt.Sprintf("isso-%v", comment.ID),
+			Name:   fmt.Sprintf("isso-%v", c.ID),
 			Path:   "/",
 			MaxAge: -1,
 			Secure: true,
@@ -550,7 +492,26 @@ func (isso *ISSO) DeleteComment() http.HandlerFunc {
 		if v := cookie.String(); v != "" {
 			w.Header().Add("X-Set-Cookie", v)
 		}
-
-		json.OK(w, reply)
+	}
+	if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
+		map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
+		cookie := &http.Cookie{
+			Name:   fmt.Sprintf("%v", c.ID),
+			Value:  encoded,
+			Path:   "/",
+			MaxAge: isso.config.MaxAge,
+			Secure: true,
+		}
+		http.SetCookie(w, cookie)
+		cookie = &http.Cookie{
+			Name:   fmt.Sprintf("isso-%v", c.ID),
+			Value:  encoded,
+			Path:   "/",
+			MaxAge: isso.config.MaxAge,
+			Secure: true,
+		}
+		if v := cookie.String(); v != "" {
+			w.Header().Add("X-Set-Cookie", v)
+		}
 	}
 }
