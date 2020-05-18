@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"wrong.wang/x/go-isso/config"
-	"wrong.wang/x/go-isso/server"
 	"wrong.wang/x/go-isso/logger"
+	"wrong.wang/x/go-isso/server"
 )
 
 func startDaemon(cfg config.Config) {

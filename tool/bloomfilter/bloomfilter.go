@@ -15,18 +15,18 @@ import (
 // because of best overall false-positive rate in that range.
 type Bloomfilter struct {
 	buffer [256]byte
-	num  int
-	k    int
-	m    uint16
+	num    int
+	k      int
+	m      uint16
 }
 
 // New return a empty Bloomfilter.
 func New() *Bloomfilter {
 	return &Bloomfilter{
 		buffer: [256]byte{},
-		num:  0,
-		k:    11,
-		m:    256 * 8,
+		num:    0,
+		k:      11,
+		m:      256 * 8,
 	}
 }
 
@@ -34,9 +34,9 @@ func New() *Bloomfilter {
 func RecoverFrom(data [256]byte, num int) *Bloomfilter {
 	return &Bloomfilter{
 		buffer: data,
-		num:  num,
-		k:    11,
-		m:    uint16(len(data) * 8),
+		num:    num,
+		k:      11,
+		m:      uint16(len(data) * 8),
 	}
 }
 

@@ -22,7 +22,7 @@ func registerRoute(router *mux.Router, isso *isso.ISSO) {
 	router.HandleFunc("/id/{id:[0-9]+}", isso.EditComment()).Methods("PUT").Name("edit")
 	router.HandleFunc("/id/{id:[0-9]+}", isso.DeleteComment()).Methods("DELETE").Name("delete")
 	router.HandleFunc("/id/{id:[0-9]+}/{vote:[like|dislike]}", isso.VoteComment()).Methods("POST").Name("vote")
-	
+
 	router.HandleFunc("/id/{id:[0-9]+}/{action:[edit|activate|delete]}/{key}", workInProcess).
 		Methods("GET").Name("moderate_get")
 	router.HandleFunc("/id/{id:[0-9]+}/{action:[edit|activate|delete]}>/{key}", workInProcess).
