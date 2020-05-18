@@ -32,7 +32,7 @@ func registerRoute(router *mux.Router, isso *isso.ISSO) {
 
 	// functional
 	router.HandleFunc("/demo", workInProcess).Methods("GET").Name("demo")
-	router.HandleFunc("/preview", workInProcess).Methods("POST").Name("preview")
+	router.HandleFunc("/preview", isso.PreviewText()).Methods("POST").Name("preview")
 
 	// amdin staff
 	router.HandleFunc("/admin", workInProcess).Methods("GET").Name("admin")

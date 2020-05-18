@@ -441,6 +441,24 @@ func (isso *ISSO) DeleteComment() http.HandlerFunc {
 	}
 }
 
+// PreviewText render markdown
+func (isso *ISSO) PreviewText() http.HandlerFunc {
+	type inputtext struct {
+		Text string `json:"text"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := RequestIDFromContext(r.Context())
+
+		var it inputtext
+		if err := jsonBind(r.Body, &it); err != nil || len(it.Text) == 0 {
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+			return
+		}
+		rendertext, _ := isso.tools.markdown.Convert(it.Text)
+		json.OK(w, map[string]string{"text": rendertext})
+	}
+}
+
 func (isso *ISSO) checkcookies(w http.ResponseWriter, r *http.Request) (Comment, bool) {
 	requestID := RequestIDFromContext(r.Context())
 	cid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
