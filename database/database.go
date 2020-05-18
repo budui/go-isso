@@ -123,7 +123,7 @@ type nullComment struct {
 	Website      null.String
 	Likes        int
 	Dislikes     int
-	Voters       [256]byte
+	Voters       []byte
 	Notification int
 }
 
@@ -142,8 +142,8 @@ func (nc nullComment) ToComment() isso.Comment {
 		Dislikes:     nc.Dislikes,
 		Notification: nc.Notification,
 		RemoteAddr:   nc.RemoteAddr,
-		Voters:       nc.Voters,
 	}
+	copy(c.Voters[:], nc.Voters)
 	if !nc.Parent.Valid {
 		c.Parent = nil
 	}
@@ -162,7 +162,10 @@ func (nc nullComment) ToComment() isso.Comment {
 func newNullComment(c isso.Comment, threadID int64, remoteAddr string) nullComment {
 	bf := bloomfilter.New()
 	bf.Add([]byte(remoteAddr))
-	votes := bf.Buffer()
+
+	v := bf.Buffer()
+	voters := make([]byte, 256)
+	copy(voters, v[:])
 	return nullComment{
 		TID:          threadID,
 		ID:           c.ID,
@@ -177,7 +180,7 @@ func newNullComment(c isso.Comment, threadID int64, remoteAddr string) nullComme
 		Website:      null.StringFromPtr(c.Website),
 		Likes:        c.Likes,
 		Dislikes:     c.Dislikes,
-		Voters:       votes,
+		Voters:       voters,
 		Notification: c.Notification,
 	}
 }

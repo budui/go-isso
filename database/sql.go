@@ -67,7 +67,7 @@ var (
 		"comment_delete_soft":  `UPDATE comments SET mode=4, text='', author='', website=NULL WHERE id=?`,
 		"comment_delete_stale": `DELETE FROM comments 
 		WHERE mode=4 AND id NOT IN (SELECT parent FROM comments WHERE parent IS NOT NULL)`,
-		"comment_vote_set": `UPDATE comments SET likes=?, dislikes=?, voter=? WHERE id=?`,
+		"comment_vote_set": `UPDATE comments SET likes=?, dislikes=?, voters=? WHERE id=?`,
 
 		"comment_guard_ratelimit": `SELECT COUNT(id) FROM comments WHERE remote_addr = ? AND ? - created < 60;`,
 		"comment_guard_3_direct_comment": `SELECT COUNT(id) FROM comments

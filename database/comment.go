@@ -79,11 +79,13 @@ func (d *Database) getComment(ctx context.Context, id int64) (nullComment, error
 	defer cancel()
 
 	var nc nullComment
+	voters := make([]byte, 256)
 	err := d.DB.QueryRowContext(ctx, d.statement["comment_get_by_id"], id).Scan(
 		&nc.TID, &nc.ID, &nc.Parent, &nc.Created, &nc.Modified, &nc.Mode,
 		&nc.RemoteAddr, &nc.Text, &nc.Author, &nc.Email, &nc.Website, &nc.Likes,
-		&nc.Dislikes, &nc.Voters, &nc.Notification,
+		&nc.Dislikes, &voters, &nc.Notification,
 	)
+	nc.Voters = voters
 	if err != nil {
 		return nc, err
 	}
@@ -283,7 +285,10 @@ func (d *Database) DeleteComment(ctx context.Context, cid int64) (isso.Comment, 
 		}
 		if err = d.execstmt(ctx, nil, nil, stmt, cid); err == nil {
 			if err = d.execstmt(ctx, nil, nil, d.statement["comment_delete_stale"]); err == nil {
-				return d.GetComment(ctx, cid)
+				if n > 0 {
+					return d.GetComment(ctx, cid)
+				}
+				return isso.Comment{}, nil
 			}
 		}
 	}
@@ -302,9 +307,11 @@ func (d *Database) VoteComment(ctx context.Context, c isso.Comment, up bool) err
 		c.Dislikes++
 	}
 
-	err := d.execstmt(ctx, nil, nil, d.statement["comment_vote_set"], c.Likes, c.Dislikes, c.Voters, c.ID)
+	voters := make([]byte, 256)
+	copy(voters, c.Voters[:])
+	err := d.execstmt(ctx, nil, nil, d.statement["comment_vote_set"], c.Likes, c.Dislikes, voters, c.ID)
 	if err != nil {
-		return wraperror(nil)
+		return wraperror(err)
 	}
 	return nil
 }
