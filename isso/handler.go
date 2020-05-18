@@ -315,8 +315,101 @@ func (isso *ISSO) ViewComment() http.HandlerFunc {
 // Editing a comment is only possible for a short period of time after it was created and only if the requestor has a valid cookie for it.
 // Editing a comment will set a new edit cookie in the response.
 func (isso *ISSO) EditComment() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
 
+	type editInput struct {
+		Text    string  `json:"text"  validate:"required,gte=3,lte=65535"`
+		Author  *string `json:"author"  validate:"required,gte=1,lte=15"`
+		Email   *string `json:"email"  validate:"omitempty,email"`
+		Website *string `json:"website"  validate:"omitempty,url"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		requestID := RequestIDFromContext(r.Context())
+		cid, err := strconv.ParseInt(mux.Vars(r)["id"], 10, 64)
+		if err != nil {
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+			return
+		}
+
+		cookieOK := false
+		var comment Comment
+		if cookie, err := r.Cookie(fmt.Sprintf("%v", cid)); err == nil {
+			cvalue := make(map[int64][20]byte)
+			if err = isso.tools.securecookie.Decode(fmt.Sprintf("%v", cid), cookie.Value, &cvalue); err == nil {
+				if h, ok := cvalue[cid]; ok {
+					if comment, err = isso.storage.GetComment(r.Context(), cid); err == nil {
+						if h == sha1.Sum([]byte(comment.Text)) {
+							cookieOK = true
+						}
+					} else {
+						if errors.Is(err, ErrStorageNotFound) {
+							json.NotFound(requestID, w, err, descStorageNotFound)
+							return
+						}
+						json.ServerError(requestID, w, err, descStorageUnhandledError)
+						return
+					}
+				}
+			}
+		}
+		if !cookieOK {
+			json.Forbidden(requestID, w, err, descRequestInvalidCookies)
+			return
+		}
+
+		var ei editInput
+		if err := jsonBind(r.Body, &ei); err != nil {
+			json.BadRequest(requestID, w, err, descRequestInvalidParm)
+			return
+		}
+		if err := validator.Validate(ei); err != nil {
+			json.BadRequest(requestID, w, err, fmt.Sprintf("edit post data validate failed: %s", err.Error()))
+			return
+		}
+
+		comment.Text = ei.Text
+		if ei.Author != nil {
+			comment.Author = *ei.Author
+		}
+		if ei.Email != nil {
+			comment.Email = ei.Email
+		}
+		if ei.Website != nil {
+			comment.Website = ei.Website
+		}
+		comment.Modified = new(float64)
+		*comment.Modified = float64(time.Now().UnixNano()) / float64(1e9)
+
+		c, err := isso.storage.EditComment(r.Context(), comment)
+		if err != nil {
+			json.ServerError(requestID, w, err, descStorageUnhandledError)
+			return
+		}
+
+		reply, _ := c.convert(false, isso.tools.hash, isso.tools.markdown)
+
+		if encoded, err := isso.tools.securecookie.Encode(fmt.Sprintf("%v", c.ID),
+			map[int64][20]byte{c.ID: sha1.Sum([]byte(c.Text))}); err == nil {
+			cookie := &http.Cookie{
+				Name:   fmt.Sprintf("%v", c.ID),
+				Value:  encoded,
+				Path:   "/",
+				MaxAge: isso.config.MaxAge,
+				Secure: true,
+			}
+			http.SetCookie(w, cookie)
+			cookie = &http.Cookie{
+				Name:   fmt.Sprintf("isso-%v", c.ID),
+				Value:  encoded,
+				Path:   "/",
+				MaxAge: isso.config.MaxAge,
+				Secure: true,
+			}
+			if v := cookie.String(); v != "" {
+				w.Header().Add("X-Set-Cookie", v)
+			}
+		}
+		json.OK(w, reply)
 	}
 }
 

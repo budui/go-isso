@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"gopkg.in/guregu/null.v4"
 	"wrong.wang/x/go-isso/isso"
@@ -250,9 +249,12 @@ func (d *Database) EditComment(ctx context.Context, c isso.Comment) (isso.Commen
 	logger.Debug("edit %s 's comment", c.Author)
 
 	var rowsaffected int64
-	modified := float64(time.Now().UnixNano()) / float64(1e9)
-	err := d.execstmt(ctx, &rowsaffected, nil, d.statement["comment_edit"],
-		c.Text, c.Author, null.StringFromPtr(c.Website), modified, c.ID)
+	if c.Modified == nil {
+		return isso.Comment{}, wraperror(isso.ErrInvalidParam)
+	}
+
+	err := d.execstmt(ctx, &rowsaffected, nil, d.statement["comment_edit"], c.Text, c.Author,
+		null.StringFromPtr(c.Website), *c.Modified, null.StringFromPtr(c.Email), c.ID)
 	if err != nil {
 		return isso.Comment{}, wraperror(err)
 	}

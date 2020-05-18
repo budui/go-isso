@@ -14,6 +14,7 @@ import (
 const descStorageNotFound = "no result found in storage"
 const descStorageUnhandledError = "storage raise unhandled error"
 const descRequestInvalidParm = "can not parse parameters correctly"
+const descRequestInvalidCookies = "invalid cookies in request(or missing cookies)"
 
 type issoContextKey int
 
