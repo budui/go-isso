@@ -96,7 +96,7 @@ func TestTitleAndThreadURI(t *testing.T) {
 		name      string
 		args      args
 		wantTitle string
-		wantUri   string
+		wantURI   string
 		wantErr   bool
 	}{
 		{"all", args{strings.NewReader(allHTML), "Untitled", "/"}, "isso", "/new/", false},
@@ -108,7 +108,7 @@ func TestTitleAndThreadURI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotTitle, gotUri, err := titleAndThreadURI(tt.args.body, tt.args.defaultTitle, tt.args.defaultURI)
+			gotTitle, gotURI, err := titleAndThreadURI(tt.args.body, tt.args.defaultTitle, tt.args.defaultURI)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TitleAndThreadURI() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -116,8 +116,8 @@ func TestTitleAndThreadURI(t *testing.T) {
 			if gotTitle != tt.wantTitle {
 				t.Errorf("TitleAndThreadURI() gotTitle = %v, want %v", gotTitle, tt.wantTitle)
 			}
-			if gotUri != tt.wantUri {
-				t.Errorf("TitleAndThreadURI() gotUri = %v, want %v", gotUri, tt.wantUri)
+			if gotURI != tt.wantURI {
+				t.Errorf("TitleAndThreadURI() gotUri = %v, want %v", gotURI, tt.wantURI)
 			}
 		})
 	}
