@@ -74,7 +74,7 @@ func setupHandler(cfg config.Config) http.Handler {
 	router = router.MatcherFunc(func(r *http.Request, rm *mux.RouteMatch) bool {
 		origin := isso.FindOrigin(r)
 		for _, allowHost := range cfg.Host {
-			if origin == allowHost {
+			if origin == "" || origin == allowHost {
 				return true
 			}
 		}
