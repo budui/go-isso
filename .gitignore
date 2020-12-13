@@ -36,5 +36,12 @@
 
 # End of https://www.gitignore.io/api/go,visualstudiocode
 
-go-isso
+static/js/*
+node_modules
+ilno
 comments.db
+bindata.go
+conf
+js/app/text/comment.js
+js/app/text/comment_loader.js
+js/app/text/postbox.js

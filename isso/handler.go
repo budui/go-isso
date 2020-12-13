@@ -60,7 +60,7 @@ func (isso *ISSO) CreateComment() http.HandlerFunc {
 				if comment.Title == "" {
 					ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 					defer cancel()
-					comment.URI, comment.Title, err = extract.GetPageTitle(ctx, commentOrigin, comment.URI)
+					comment.Title, comment.URI, err = extract.GetPageTitle(ctx, commentOrigin, comment.URI)
 					if err != nil {
 						json.NotFound(requestID, w, err, "URI does not exist or can parse or get title correctly")
 						return

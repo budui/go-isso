@@ -60,7 +60,7 @@ func FindOrigin(r *http.Request) string {
 		if err != nil {
 			return ""
 		}
-		return fmt.Sprintf("%s://%s", u.Scheme, u.Host)
+		origin = fmt.Sprintf("%s://%s", u.Scheme, u.Host)
 	}
 	if origin == "://" {
 		return ""
