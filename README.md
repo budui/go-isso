@@ -1,4 +1,4 @@
-**This is still a work in progress**
+**For personal reasons, I've taken a break from development.**
 
 New develop take place in branch `dev`.
 
@@ -70,7 +70,7 @@ feel free to [raise an issue](https://github.com/budui/go-isso/issues)/[submit a
 
 I know NOTHING about javascript. I need someone to HELP ME!!!
 
-If you want to develop `go-isso`, fell free to [contact](https://wrong.wang/about/) me.
+~~If you want to develop `go-isso`, fell free to [contact](https://wrong.wang/about/) me.~~
 
 ## Authors
 
